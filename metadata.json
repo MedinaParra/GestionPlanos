@@ -1,0 +1,6 @@
+{
+  "name": "SKM Industrial OT",
+  "description": "SKM Industrial - Firma biométrica de planos, gestión de OTs de fabricación, Google Drive y métricas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

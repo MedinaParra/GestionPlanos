@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Blueprint Document Card -->
+    <path
+        android:fillColor="#0D47A1"
+        android:pathData="M28,24h52c2.2,0 4,1.8 4,4v52c0,2.2 -1.8,4 -4,4H28c-2.2,0 -4,-1.8 -4,-4V28c0,-2.2 1.8,-4 4,-4z" />
+    <!-- Blueprint Inner Grid lines -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#64B5F6"
+        android:strokeWidth="1"
+        android:pathData="M32,32h44 M32,44h44 M32,56h44 M32,68h44 M44,28v52 M64,28v52" />
+    <!-- Glowing Signature Check / Pen -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M34,54c6,4 10,8 14,0c4,-8 10,-12 18,-4c4,4 8,2 12,-2" />
+    <!-- Certified Stamp Circle -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M70,66a6,6 0 1,0 0.001,0" />
+</vector>
