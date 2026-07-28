@@ -42,6 +42,7 @@ data class DocumentRecord(
     val status: String = "PENDIENTE",
     val driveFileId: String = "",
     val driveWebViewLink: String = "",
+    val previewStoragePath: String = "",
     val uploadedByUid: String = "",
     val uploadedByName: String = "",
     val uploadedAt: Long = 0L,
