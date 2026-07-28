@@ -5,11 +5,15 @@ import com.example.document.model.DocumentRecord
 import com.example.document.model.DriveConfiguration
 import com.example.document.model.SessionUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import kotlinx.coroutines.tasks.await
+import java.io.File
 import java.util.UUID
 
 class DocumentRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance(),
     private val drive: DriveRestClient = DriveRestClient()
 ) {
     suspend fun loadConfiguration(): DriveConfiguration {
@@ -79,6 +83,7 @@ class DocumentRepository(
                 status = document.getString("status") ?: "PENDIENTE",
                 driveFileId = document.getString("driveFileId").orEmpty(),
                 driveWebViewLink = document.getString("driveWebViewLink").orEmpty(),
+                previewStoragePath = document.getString("previewStoragePath").orEmpty(),
                 uploadedByUid = document.getString("uploadedByUid").orEmpty(),
                 uploadedByName = document.getString("uploadedByName").orEmpty(),
                 uploadedAt = document.getLong("uploadedAt") ?: 0L,
@@ -106,6 +111,8 @@ class DocumentRepository(
         require(cleanCode.isNotBlank()) { "La codificación del plano es obligatoria." }
         val cleanRevision = revision.trim().uppercase().ifBlank { "A" }
         val finalFileName = buildManagedFileName(cleanCode, cleanRevision, sourceFileName)
+        val recordId = UUID.randomUUID().toString()
+
         val driveFile = drive.uploadPdf(
             accessToken = accessToken,
             folderId = configuration.folderId,
@@ -113,15 +120,23 @@ class DocumentRepository(
             bytes = pdfBytes
         )
 
+        val previewPath = "document-previews/$recordId/$finalFileName"
+        val metadata = StorageMetadata.Builder()
+            .setContentType("application/pdf")
+            .setCustomMetadata("driveFileId", driveFile.id)
+            .build()
+        storage.reference.child(previewPath).putBytes(pdfBytes, metadata).await()
+
         val now = System.currentTimeMillis()
         val record = DocumentRecord(
-            id = UUID.randomUUID().toString(),
+            id = recordId,
             code = cleanCode,
             fileName = driveFile.name,
             revision = cleanRevision,
             status = "PENDIENTE",
             driveFileId = driveFile.id,
             driveWebViewLink = driveFile.webViewLink,
+            previewStoragePath = previewPath,
             uploadedByUid = user.uid,
             uploadedByName = user.displayName,
             uploadedAt = now,
@@ -167,7 +182,7 @@ class DocumentRepository(
     ) {
         require(user.canEdit) { "La cuenta es solo de visualización." }
         val now = System.currentTimeMillis()
-        val values = if (signed) {
+        val values: Map<String, Any> = if (signed) {
             mapOf(
                 "signed" to true,
                 "status" to "FIRMADO",
@@ -199,8 +214,17 @@ class DocumentRepository(
     suspend fun downloadPdf(
         accessToken: String,
         driveFileId: String,
-        target: java.io.File
-    ): java.io.File = drive.downloadPdf(accessToken, driveFileId, target)
+        target: File
+    ): File = drive.downloadPdf(accessToken, driveFileId, target)
+
+    suspend fun downloadPreview(
+        previewStoragePath: String,
+        target: File
+    ): File {
+        require(previewStoragePath.isNotBlank()) { "Este documento no tiene una copia de previsualización." }
+        storage.reference.child(previewStoragePath).getFile(target).await()
+        return target
+    }
 
     suspend fun rewriteSpreadsheet(
         accessToken: String,
@@ -264,6 +288,7 @@ class DocumentRepository(
         "status" to status,
         "driveFileId" to driveFileId,
         "driveWebViewLink" to driveWebViewLink,
+        "previewStoragePath" to previewStoragePath,
         "uploadedByUid" to uploadedByUid,
         "uploadedByName" to uploadedByName,
         "uploadedAt" to uploadedAt,
