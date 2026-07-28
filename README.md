@@ -1,131 +1,183 @@
-# Gestión de Planos SKM
+# Gestión de Planos SKM — versión directa con Google Drive
 
-Aplicación Android para centralizar el control documental de planos de SKM Industrial. Sustituye el seguimiento manual de PDF, revisiones y firmas por un flujo compartido con Google Drive, Google Sheets, Firebase Authentication y control de roles.
+Aplicación Android para cargar, visualizar, renombrar y controlar planos PDF usando directamente una cuenta de Google Drive. La aplicación no necesita Firebase, servidor, base de datos, Cloud Functions ni usuarios internos.
 
-## Alcance implementado
+## Funcionamiento simplificado
 
-- Inicio de sesión Google restringido al dominio `@skmindustrial.cl`.
-- El primer usuario corporativo que completa el alta queda como `ADMIN` mediante una transacción del servidor.
-- Los siguientes usuarios corporativos quedan como `EDITOR`.
-- El administrador puede crear usuarios con nombre de usuario y contraseña en rol `VIEWER`.
-- Los visualizadores pueden consultar el registro y abrir PDF, pero no modificar documentos, Drive, revisiones ni firmas.
-- Carpeta de Google Drive configurable únicamente por el administrador.
-- Carga de PDF a la carpeta oficial de Drive.
-- Creación automática de una planilla Google Sheets llamada `Control de Documentos SKM`.
-- Planilla sincronizada con código, archivo, revisión, firmado, estado, responsable, fecha, enlace y última actualización.
-- Visor PDF integrado en la aplicación.
-- Registro de auditoría de cargas, revisiones y cambios de firma.
-- Copia protegida de previsualización en Firebase Storage para accesos de solo lectura.
+1. El usuario conecta su propia cuenta Google y autoriza Drive y Sheets.
+2. La aplicación crea en `Mi unidad` una carpeta privada llamada `GestionPlanosSKM-Privado`.
+3. Dentro de esa carpeta guarda `claves-configuracion.json`, que contiene solamente IDs y configuración técnica. No almacena contraseñas, PIN ni datos biométricos.
+4. El usuario pega el enlace de una carpeta normal de Drive que utilizará para los planos.
+5. Los permisos de esa carpeta se administran directamente desde Google Drive:
+   - **Lector:** puede abrir PDF y ver el control documental.
+   - **Editor:** puede cargar PDF, cambiar revisiones y firmar.
+6. La aplicación crea dentro de la carpeta compartida:
+   - Los PDF administrados.
+   - `control-documental.json` con el índice y los estados.
+   - Una planilla `Control de Documentos SKM`.
+7. Para marcar o quitar una firma, Android exige huella, rostro o PIN/patrón/clave del teléfono.
 
-## Roles
+## Capacidades implementadas
 
-| Rol | Acceso |
-|---|---|
-| `ADMIN` | Configura Drive, crea visualizadores, carga y modifica documentos. |
-| `EDITOR` | Carga PDF, cambia revisión y estado de firma. |
-| `VIEWER` | Solo consulta el control documental y visualiza PDF. |
+- Acceso directo de lectura y escritura a Google Drive.
+- Compatible con una carpeta normal o compartida de Drive.
+- Detección automática de permiso de lectura o escritura mediante las capacidades de Drive.
+- Carga de PDF de hasta 40 MB.
+- Visor PDF dentro de la aplicación.
+- Cambio de revisión con renombrado real del PDF en Drive.
+- Índice documental JSON compartido.
+- Planilla Google Sheets sincronizada.
+- Firma mediante la ventana oficial de seguridad de Android.
+- Registro de firmante, correo, fecha y método de confirmación.
+- Acceso mediante cualquier cuenta Google autorizada, sin depender de Firebase.
 
-La asignación del primer administrador se realiza en Cloud Functions. No depende de datos locales ni del orden de instalación del APK.
+## Archivos creados en Drive
 
-## Arquitectura
+### Carpeta privada del usuario
 
-- **Android / Kotlin / Jetpack Compose:** interfaz y visor PDF.
-- **Firebase Authentication:** Google corporativo y cuentas de visualización.
-- **Cloud Functions:** asignación segura de roles y creación de visualizadores.
-- **Cloud Firestore:** configuración, metadatos documentales y auditoría.
-- **Google Drive:** repositorio oficial de PDF.
-- **Google Sheets:** planilla de control compartida.
-- **Firebase Storage:** copia protegida para visualizadores sin permisos de Drive.
-
-## Configuración inicial
-
-### 1. Crear o seleccionar el proyecto Firebase
-
-1. Registrar una aplicación Android con el package name:
-
-   `cl.skmindustrial.gestionplanos`
-
-2. Descargar `google-services.json` y copiarlo en:
-
-   `app/google-services.json`
-
-3. En Authentication habilitar:
-   - Google.
-   - Correo y contraseña.
-
-4. Crear Firestore y Storage.
-
-### 2. Configurar Google Cloud / Workspace
-
-En el mismo proyecto Google Cloud:
-
-1. Habilitar **Google Drive API** y **Google Sheets API**.
-2. Configurar la pantalla de consentimiento OAuth como aplicación **interna** de Google Workspace cuando el dominio `skmindustrial.cl` esté administrado en Workspace.
-3. Crear las credenciales OAuth Android correspondientes al package y a las huellas SHA-1/SHA-256 del certificado de desarrollo y producción.
-4. Confirmar que Firebase haya creado el cliente OAuth web usado por `default_web_client_id`.
-
-La aplicación solicita los alcances de Drive y Sheets durante la sesión del editor. El selector de cuenta y la autorización se restringen a `skmindustrial.cl`.
-
-### 3. Desplegar backend y reglas
-
-Instalar Firebase CLI, iniciar sesión y asociar el proyecto:
-
-```bash
-firebase login
-firebase use --add
+```text
+Mi unidad/
+└── GestionPlanosSKM-Privado/
+    └── claves-configuracion.json
 ```
 
-Instalar y compilar las funciones:
+`claves-configuracion.json` guarda:
 
-```bash
-cd functions
-npm install
-npm run build
-cd ..
+- ID de la carpeta compartida.
+- ID de la planilla.
+- ID del índice documental.
+- Nombre visible de la carpeta.
+- Última actualización.
+
+No contiene contraseñas ni tokens OAuth permanentes.
+
+### Carpeta compartida de planos
+
+```text
+Carpeta elegida por el usuario/
+├── Control de Documentos SKM
+├── control-documental.json
+├── CODIGO_REV-A_archivo.pdf
+└── otros planos PDF
 ```
 
-Desplegar:
+## Configuración de Google Cloud
 
-```bash
-firebase deploy --only functions,firestore:rules,storage
+Solo se necesita un proyecto Google Cloud.
+
+### 1. Crear el proyecto
+
+Crea o selecciona un proyecto en Google Cloud Console, por ejemplo:
+
+```text
+Gestion Planos SKM
 ```
 
-### 4. Compilar Android
+### 2. Habilitar APIs
 
-El repositorio original no incluía `gradlew` ni `gradle-wrapper.jar`. Hasta incorporar el wrapper binario, se debe usar Gradle 9.3.1 instalado localmente, la tarea Gradle de Android Studio o el workflow de GitHub Actions incluido en esta rama.
+En **APIs y servicios > Biblioteca**, habilita:
+
+- Google Drive API.
+- Google Sheets API.
+
+### 3. Configurar consentimiento OAuth
+
+En **Google Auth Platform** configura:
+
+- Nombre de aplicación: `Gestión de Planos SKM`.
+- Correo de soporte.
+- Audiencia interna si el proyecto pertenece al Google Workspace de SKM; de lo contrario usa audiencia externa para pruebas.
+- Agrega como usuarios de prueba las cuentas que instalarán la APK cuando la aplicación siga en modo de prueba.
+
+La aplicación solicita estos scopes:
+
+```text
+https://www.googleapis.com/auth/drive
+https://www.googleapis.com/auth/spreadsheets
+```
+
+El scope de Drive permite leer, crear, renombrar y modificar archivos de la cuenta que concede el permiso.
+
+### 4. Crear cliente OAuth Android
+
+Crea una credencial OAuth de tipo **Android** con:
+
+```text
+Package name: cl.skmindustrial.gestionplanos
+```
+
+Agrega la huella SHA-1 del certificado con el que se firma la APK.
+
+Para obtener la huella debug en Windows:
+
+```powershell
+keytool -list -v `
+  -alias androiddebugkey `
+  -keystore "$env:USERPROFILE\.android\debug.keystore" `
+  -storepass android `
+  -keypass android
+```
+
+No se necesita `google-services.json`.
+
+## Compilación
+
+Requisitos:
+
+- JDK 17.
+- Android SDK 36.
+- Gradle 9.3.1 o Android Studio.
 
 ```bash
-gradle --version
 gradle --no-daemon testDebugUnitTest
 gradle --no-daemon assembleDebug
 ```
 
-El APK de depuración se genera en:
+APK generado:
 
-`app/build/outputs/apk/debug/app-debug.apk`
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## Primer uso
 
-1. Iniciar la aplicación con la cuenta corporativa que será administradora.
-2. Presionar **Conectar Google Drive** y autorizar Drive/Sheets.
-3. Abrir **Administrar**.
-4. Pegar el enlace o ID de la carpeta oficial de Drive.
-5. Guardar la configuración. La aplicación creará la planilla de control dentro de esa carpeta.
-6. Agregar el primer PDF indicando su código y revisión.
-7. Crear usuarios de visualización cuando sea necesario.
+1. Instala la APK.
+2. Presiona **Conectar mi Google Drive**.
+3. Selecciona la cuenta y acepta Drive y Sheets.
+4. La app creará `GestionPlanosSKM-Privado` en tu Drive.
+5. Crea manualmente la carpeta de planos en Drive.
+6. Desde Drive, comparte esa carpeta con las personas necesarias como lectoras o editoras.
+7. En la aplicación, presiona **Elegir carpeta** y pega el enlace.
+8. Agrega el primer PDF.
+9. Para firmar, pulsa **Firmar con huella o PIN** y confirma en la ventana de Android.
 
-## Consideraciones de seguridad
+## Firma con huella o PIN
 
-- No subir `google-services.json`, keystores ni contraseñas al repositorio.
-- Utilizar una carpeta o Unidad Compartida administrada por SKM Industrial.
-- Las reglas impiden que `VIEWER` modifique Firestore o Storage.
-- La creación de usuarios y la asignación de roles se ejecutan exclusivamente con Firebase Admin SDK en Cloud Functions.
-- El estado `FIRMADO` representa control de flujo documental. No equivale por sí solo a una firma electrónica avanzada regulada ni incrusta una firma criptográfica dentro del PDF.
+La aplicación no lee ni guarda la huella, el rostro, el PIN, el patrón o la contraseña del teléfono. Android realiza la validación y devuelve solamente un resultado de éxito o cancelación.
 
-## Rama de implementación
+Después de una validación correcta se registra:
 
-La reconstrucción funcional se desarrolla en:
+- Nombre de la cuenta Google.
+- Correo de la cuenta.
+- Fecha y hora.
+- Método general utilizado: biometría o credencial del teléfono.
+- Estado `FIRMADO`.
 
-`agent/document-management-v2`
+Esta función corresponde a una aprobación o firma interna de flujo documental. No inserta un certificado digital en el PDF y no equivale por sí sola a una firma electrónica avanzada.
 
-La interfaz heredada permanece en el código por compatibilidad temporal, pero ya no es accesible desde `MainActivity`. Puede eliminarse después de validar el nuevo flujo en dispositivos corporativos.
+## Seguridad práctica
+
+- No se guardan contraseñas de usuarios en Drive.
+- Los permisos dependen de las reglas normales de Google Drive.
+- Una persona con permiso de lector no puede modificar la carpeta mediante la aplicación.
+- Una persona con permiso de editor sí puede actualizar el índice, la planilla y los PDF.
+- La carpeta privada no debe compartirse.
+- La carpeta de planos sí se comparte desde Drive según las necesidades del equipo.
+
+## Rama de desarrollo
+
+```text
+agent/document-management-v2
+```
+
+El PR permanece en borrador hasta validar el flujo con una cuenta Google real y una carpeta compartida real.
