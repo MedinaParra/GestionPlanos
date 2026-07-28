@@ -109,7 +109,9 @@ class DocumentRepository(
         require(configuration.isConfigured) { "El administrador todavía no ha configurado Drive." }
         val cleanCode = code.trim().uppercase()
         require(cleanCode.isNotBlank()) { "La codificación del plano es obligatoria." }
+        require(cleanCode.length <= 120) { "La codificación del plano es demasiado larga." }
         val cleanRevision = revision.trim().uppercase().ifBlank { "A" }
+        require(cleanRevision.length <= 30) { "La revisión es demasiado larga." }
         val finalFileName = buildManagedFileName(cleanCode, cleanRevision, sourceFileName)
         val recordId = UUID.randomUUID().toString()
 
@@ -160,6 +162,7 @@ class DocumentRepository(
         require(user.canEdit) { "La cuenta es solo de visualización." }
         val revision = newRevision.trim().uppercase()
         require(revision.isNotBlank()) { "La revisión no puede quedar vacía." }
+        require(revision.length <= 30) { "La revisión es demasiado larga." }
         val now = System.currentTimeMillis()
         firestore.collection("documents").document(document.id)
             .update(
@@ -268,8 +271,17 @@ class DocumentRepository(
     }
 
     private fun buildManagedFileName(code: String, revision: String, original: String): String {
-        val base = original.substringBeforeLast('.').replace(Regex("[^a-zA-Z0-9._-]+"), "_")
-        return "${code}_REV-${revision}_${base}.pdf"
+        fun safePart(value: String, fallback: String): String = value
+            .trim()
+            .replace(Regex("[^a-zA-Z0-9._-]+"), "_")
+            .trim('_', '.', '-')
+            .take(120)
+            .ifBlank { fallback }
+
+        val safeCode = safePart(code, "PLANO")
+        val safeRevision = safePart(revision, "A")
+        val safeOriginal = safePart(original.substringBeforeLast('.'), "documento")
+        return "${safeCode}_REV-${safeRevision}_${safeOriginal}.pdf"
     }
 
     private fun DriveConfiguration.toMap(): Map<String, Any> = mapOf(
