@@ -181,10 +181,21 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
 
     fun openPdf(document: DocumentRecord) {
         launchBusy {
-            val token = requireDriveToken()
+            val session = requireSession()
             val safeName = document.fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
             val target = File(getApplication<Application>().cacheDir, safeName)
-            documentRepository.downloadPdf(token, document.driveFileId, target)
+            val token = driveAccessToken
+
+            if (session.canEdit && token != null && document.driveFileId.isNotBlank()) {
+                runCatching {
+                    documentRepository.downloadPdf(token, document.driveFileId, target)
+                }.getOrElse {
+                    documentRepository.downloadPreview(document.previewStoragePath, target)
+                }
+            } else {
+                documentRepository.downloadPreview(document.previewStoragePath, target)
+            }
+
             _uiState.update { it.copy(previewDocument = document, previewFile = target) }
         }
     }
