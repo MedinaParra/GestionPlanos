@@ -5,6 +5,7 @@ import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.NoCredentialException
 import com.example.BuildConfig
 import com.example.document.model.SessionUser
 import com.example.document.model.UserRole
@@ -54,7 +55,7 @@ class AuthRepository(
                 context = activity,
                 request = googleRequest(clientId, filterAuthorized = true)
             )
-        } catch (_: Exception) {
+        } catch (_: NoCredentialException) {
             credentialManager.getCredential(
                 context = activity,
                 request = googleRequest(clientId, filterAuthorized = false)
@@ -68,27 +69,28 @@ class AuthRepository(
         ) { "Google no devolvió una credencial válida." }
 
         val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
-        val email = googleCredential.id.trim().lowercase()
-        require(email.endsWith("@$corporateDomain")) {
-            "Solo se permiten cuentas corporativas @$corporateDomain."
-        }
-
         val firebaseCredential = GoogleAuthProvider.getCredential(googleCredential.idToken, null)
         val result = auth.signInWithCredential(firebaseCredential).await()
         val user = requireNotNull(result.user) { "No fue posible crear la sesión de Firebase." }
+        val verifiedEmail = user.email.orEmpty().trim().lowercase()
+
+        if (!verifiedEmail.endsWith("@$corporateDomain")) {
+            auth.signOut()
+            error("Solo se permiten cuentas corporativas @$corporateDomain.")
+        }
 
         val role = bootstrapCorporateUser(
             uid = user.uid,
-            email = user.email.orEmpty(),
+            email = verifiedEmail,
             displayName = user.displayName.orEmpty()
         )
         user.getIdToken(true).await()
 
         return SessionUser(
             uid = user.uid,
-            email = user.email.orEmpty(),
+            email = verifiedEmail,
             displayName = user.displayName?.takeIf { it.isNotBlank() }
-                ?: user.email?.substringBefore('@').orEmpty(),
+                ?: verifiedEmail.substringBefore('@'),
             role = role,
             isCorporateGoogleUser = true
         )
@@ -164,6 +166,7 @@ class AuthRepository(
     private fun googleRequest(clientId: String, filterAuthorized: Boolean): GetCredentialRequest {
         val option = GetGoogleIdOption.Builder()
             .setServerClientId(clientId)
+            .setHostedDomainFilter(corporateDomain)
             .setFilterByAuthorizedAccounts(filterAuthorized)
             .setAutoSelectEnabled(false)
             .build()
