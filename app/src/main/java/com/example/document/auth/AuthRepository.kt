@@ -83,7 +83,7 @@ class AuthRepository(
         val credential = credentialResult.credential
         require(
             credential is CustomCredential &&
-                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN
+                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
         ) { "Google no devolvió una credencial válida." }
 
         val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
