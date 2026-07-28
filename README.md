@@ -92,9 +92,12 @@ firebase deploy --only functions,firestore:rules,storage
 
 ### 4. Compilar Android
 
+El repositorio original no incluía `gradlew` ni `gradle-wrapper.jar`. Hasta incorporar el wrapper binario, se debe usar Gradle 9.3.1 instalado localmente, la tarea Gradle de Android Studio o el workflow de GitHub Actions incluido en esta rama.
+
 ```bash
-./gradlew testDebugUnitTest
-./gradlew assembleDebug
+gradle --version
+gradle --no-daemon testDebugUnitTest
+gradle --no-daemon assembleDebug
 ```
 
 El APK de depuración se genera en:
@@ -125,4 +128,4 @@ La reconstrucción funcional se desarrolla en:
 
 `agent/document-management-v2`
 
-La interfaz heredada permanece en el código por compatibilidad temporal, pero ya no es accesible desde `MainActivity`. Puede eliminarse en una limpieza posterior después de validar el nuevo flujo en dispositivos corporativos.
+La interfaz heredada permanece en el código por compatibilidad temporal, pero ya no es accesible desde `MainActivity`. Puede eliminarse después de validar el nuevo flujo en dispositivos corporativos.
