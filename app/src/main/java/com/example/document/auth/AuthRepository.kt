@@ -22,27 +22,45 @@ class AuthRepository(
     private val functions: FirebaseFunctions = FirebaseFunctions.getInstance()
 ) {
     private val corporateDomain = BuildConfig.CORPORATE_DOMAIN.lowercase()
-    private val viewerDomain = "viewer.skmindustrial.local"
+    private val viewerDomain = "viewer.skmindustrial.cl"
 
     suspend fun restoreSession(): SessionUser? {
         val firebaseUser = auth.currentUser ?: return null
-        val token = firebaseUser.getIdToken(true).await()
-        var role = UserRole.from(token.claims["role"] as? String)
+        var token = firebaseUser.getIdToken(true).await()
         val isGoogle = firebaseUser.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
-        val email = firebaseUser.email.orEmpty().lowercase()
+        val email = firebaseUser.email.orEmpty().trim().lowercase()
+        var role = UserRole.from(token.claims["role"] as? String)
 
-        if (isGoogle && email.endsWith("@$corporateDomain") && token.claims["role"] == null) {
-            role = bootstrapCorporateUser(firebaseUser.uid, email, firebaseUser.displayName.orEmpty())
-            firebaseUser.getIdToken(true).await()
+        when {
+            isGoogle && email.endsWith("@$corporateDomain") -> {
+                if (token.claims["role"] == null) {
+                    role = bootstrapCorporateUser(
+                        firebaseUser.uid,
+                        email,
+                        firebaseUser.displayName.orEmpty()
+                    )
+                    token = firebaseUser.getIdToken(true).await()
+                    role = UserRole.from(token.claims["role"] as? String).takeIf {
+                        it == UserRole.ADMIN || it == UserRole.EDITOR
+                    } ?: role
+                }
+            }
+
+            !isGoogle && email.endsWith("@$viewerDomain") && role == UserRole.VIEWER -> Unit
+
+            else -> {
+                auth.signOut()
+                return null
+            }
         }
 
         return SessionUser(
             uid = firebaseUser.uid,
-            email = firebaseUser.email.orEmpty(),
+            email = if (role == UserRole.VIEWER) email.substringBefore('@') else email,
             displayName = firebaseUser.displayName?.takeIf { it.isNotBlank() }
-                ?: firebaseUser.email?.substringBefore('@').orEmpty(),
+                ?: email.substringBefore('@'),
             role = role,
-            isCorporateGoogleUser = isGoogle && email.endsWith("@$corporateDomain")
+            isCorporateGoogleUser = isGoogle
         )
     }
 
@@ -102,7 +120,10 @@ class AuthRepository(
         val user = requireNotNull(result.user) { "No fue posible iniciar la sesión de visualización." }
         val token = user.getIdToken(true).await()
         val role = UserRole.from(token.claims["role"] as? String)
-        require(role == UserRole.VIEWER) { "La cuenta no tiene permisos de visualización." }
+        if (role != UserRole.VIEWER) {
+            auth.signOut()
+            error("La cuenta no tiene permisos de visualización.")
+        }
 
         return SessionUser(
             uid = user.uid,
