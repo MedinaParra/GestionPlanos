@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestDriveAuthorization() {
-        val request = AuthorizationRequest.builder()
+        val request = AuthorizationRequest.Builder()
             .setRequestedScopes(
                 listOf(
                     Scope(DRIVE_SCOPE),
