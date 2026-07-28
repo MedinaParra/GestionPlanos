@@ -1,12 +1,9 @@
-import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
-  alias(libs.plugins.google.services)
 }
 
 android {
@@ -17,11 +14,10 @@ android {
     applicationId = "cl.skmindustrial.gestionplanos"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "2.0.0"
+    versionCode = 3
+    versionName = "3.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    buildConfigField("String", "CORPORATE_DOMAIN", "\"skmindustrial.cl\"")
   }
 
   signingConfigs {
@@ -65,13 +61,12 @@ secrets {
   defaultPropertiesFileName = ".env.example"
 }
 
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
-
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
 
   implementation(libs.androidx.activity.compose)
+  implementation(libs.androidx.biometric)
+  implementation(libs.androidx.fragment.ktx)
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
@@ -85,14 +80,6 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
-
-  implementation(libs.firebase.auth)
-  implementation(libs.firebase.firestore)
-  implementation(libs.firebase.functions)
-  implementation(libs.firebase.storage)
-  implementation(libs.androidx.credentials)
-  implementation(libs.androidx.credentials.play.services)
-  implementation(libs.googleid)
   implementation(libs.play.services.auth)
 
   implementation(libs.kotlinx.coroutines.android)
