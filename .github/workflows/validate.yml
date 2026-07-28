@@ -1,4 +1,4 @@
-name: Validate document management app
+name: Validate Drive document management app
 
 on:
   push:
@@ -12,24 +12,6 @@ permissions:
   contents: read
 
 jobs:
-  firebase-functions:
-    name: Firebase Functions
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: functions
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install dependencies
-        run: npm install
-      - name: TypeScript validation
-        run: npm run build
-
   android:
     name: Android unit tests and APK
     runs-on: ubuntu-latest
@@ -56,6 +38,6 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: gestion-planos-debug-apk
+          name: gestion-planos-drive-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
