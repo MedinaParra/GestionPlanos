@@ -51,12 +51,12 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
 
     fun reportDriveAuthorizationError(error: Throwable) {
         _uiState.update {
-            it.copy(
-                error = error.userMessage(),
-                driveConnected = false,
-                busy = false
-            )
+            it.copy(error = error.userMessage(), driveConnected = false, busy = false)
         }
+    }
+
+    fun reportActionError(message: String) {
+        _uiState.update { it.copy(error = message, busy = false) }
     }
 
     fun refreshDashboard() {
@@ -96,9 +96,7 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
         launchBusy {
             val resolver = getApplication<Application>().contentResolver
             val fileName = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { cursor ->
-                    if (cursor.moveToFirst()) cursor.getString(0) else null
-                }
+                ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                 ?: "plano.pdf"
             require(fileName.lowercase().endsWith(".pdf")) { "Solo se pueden cargar archivos PDF." }
             val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
@@ -132,10 +130,7 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun toggleSignedAfterDeviceAuthentication(
-        document: DocumentRecord,
-        signatureMethod: String
-    ) {
+    fun toggleSignedAfterDeviceAuthentication(document: DocumentRecord, signatureMethod: String) {
         launchBusy {
             val workspace = documentRepository.markSigned(
                 user = requireSession(),
@@ -200,9 +195,7 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _uiState.update { it.copy(busy = true, error = null) }
             runCatching { block() }
-                .onFailure { error ->
-                    _uiState.update { it.copy(error = error.userMessage()) }
-                }
+                .onFailure { error -> _uiState.update { it.copy(error = error.userMessage()) } }
             _uiState.update { it.copy(busy = false) }
         }
     }
