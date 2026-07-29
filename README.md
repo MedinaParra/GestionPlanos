@@ -1,69 +1,118 @@
 # SKM Industrial Gestión de Planos
 
-Aplicación Android para administrar planos PDF, revisiones, firmas, comentarios y aprobación para fabricación usando Google Drive.
+Aplicación Android para controlar planos PDF, observaciones, revisiones, aprobaciones y firmas usando Google Drive como repositorio documental.
 
-## Funciones principales
+La versión 6 toma los principios útiles del flujo de Autodesk Docs, pero los reduce a un proceso específico para SKM Industrial. No intenta reproducir todos los módulos de Autodesk Construction Cloud.
+
+## Flujo oficial
+
+```text
+1. Administrador carga PDF y define OT, código y revisión
+2. La app crea OT XXX / Rev N y genera la copia NO APTO
+3. El plano queda EN REVISIÓN y se asigna al primer revisor
+4. El revisor puede crear borradores privados y publicar observaciones
+5. El revisor decide:
+   ├── Aprobar y firmar
+   └── Solicitar cambios
+6. Si aprueba, el turno pasa al siguiente revisor
+7. Si solicita cambios, el flujo se detiene hasta cargar una nueva revisión
+8. Al aprobar todos, se genera el PDF APTO PARA FABRICACIÓN
+```
+
+La aprobación es secuencial para evitar que dos personas modifiquen simultáneamente la misma copia firmada.
+
+## Estados visibles
+
+- `En revisión`
+- `Cambios solicitados`
+- `Apto para fabricación`
+
+## Funciones mantenidas
 
 - Acceso con cuenta Google corporativa.
 - Organización automática por `OT XXX / Rev N`.
-- Copia roja `NO APTO PARA FABRICACIÓN` durante la revisión.
-- Firmas acumulativas con nombre, cargo, RUT, fecha, hora y firma manual.
-- PDF final azul `APTO PARA FABRICACIÓN` cuando termina el flujo.
+- Norma mínima de nombre: OT, código de plano y revisión.
+- Copia roja translúcida `NO APTO PARA FABRICACIÓN` durante la revisión.
+- Visor PDF con zoom de 100 % a 600 % y desplazamiento.
+- Observaciones ubicadas en una hoja y posición del plano.
+- Borradores privados almacenados en el Drive personal del autor.
+- Publicación de observaciones para todos los miembros del proyecto.
+- Solicitud de cambios con motivo obligatorio.
+- Aprobación y firma confirmada mediante biometría o bloqueo del teléfono.
+- Firma acumulativa con nombre, cargo, RUT, fecha, hora y firma manual.
+- Historial de carga, observaciones, aprobaciones, solicitudes de cambios y cierre.
 - Panel de administración de usuarios y firmantes obligatorios.
-- Notificaciones locales de pendientes.
-- Visor PDF con zoom mediante gesto de pinza, desplazamiento y controles de acercar/alejar.
-- Comentarios como cuadros de texto ubicados sobre una hoja específica.
+- Notificaciones locales a las 08:00 y 15:00, con escalamiento después de 36 horas.
+- PDF final azul `APTO PARA FABRICACIÓN` cuando todos aprueban.
 
-## Zoom del visor
+## Observaciones privadas y publicadas
 
-Dentro del visor:
+Los comentarios no alteran el PDF original.
 
-- Pellizca con dos dedos para acercar o alejar.
-- Arrastra con dos dedos para desplazarte por el plano ampliado.
-- Usa los botones de acercar, alejar y restablecer.
-- El rango de ampliación es de 100 % a 600 %.
+### Borrador privado
 
-## Comentarios
+- Se guarda en `GestionPlanosSKM-Privado/comentarios-borradores.json` dentro del Drive del autor.
+- Solo el autor puede verlo, editarlo, reubicarlo, publicarlo o eliminarlo.
+- No queda almacenado en la carpeta compartida del proyecto.
 
-Los comentarios son anotaciones compartidas del sistema y no modifican el PDF original.
+### Observación publicada
 
-1. Abre un plano.
-2. Pulsa **Agregar comentario**.
-3. Toca la posición del plano donde deseas ubicarlo.
-4. Escribe el texto y ajusta el ancho del cuadro.
-5. Pulsa **Guardar**.
+- Se guarda en `GestionPlanos-Sistema/comentarios-publicados.json`.
+- Todos los usuarios del proyecto pueden verla.
+- El autor o un administrador puede editarla o eliminarla.
+- Los comentarios creados con versiones anteriores se migran como publicados.
 
-Cada comentario registra:
+## Solicitar cambios
 
-- Documento y hoja.
-- Posición y ancho normalizados.
-- Texto.
-- Nombre y correo del autor.
-- Fecha y hora.
+El revisor que tiene el turno puede detener la revisión y escribir el motivo. El documento pasa a `CAMBIOS_SOLICITADOS`, deja de generar avisos de firma y no puede seguir firmándose.
 
-El autor o un administrador puede editar, reubicar o eliminar el comentario. Los datos se sincronizan en:
-
-```text
-GestionPlanos-Sistema/comentarios-planos.json
-```
+El administrador debe corregir el plano y cargar una revisión nueva, por ejemplo `Rev 1`. La revisión anterior se conserva como historial y no se sobrescribe.
 
 ## Estructura de Drive
 
 ```text
-Carpeta principal/
+Drive privado de cada usuario/
+└── GestionPlanosSKM-Privado/
+    ├── claves-configuracion.json
+    └── comentarios-borradores.json
+
+Carpeta principal compartida/
 ├── GestionPlanos-Sistema/
 │   ├── usuarios.json
 │   ├── configuracion-flujo.json
-│   └── comentarios-planos.json
+│   ├── comentarios-publicados.json
+│   └── historial-flujo.json
 ├── control-documental.json
 ├── Control de Documentos SKM
 └── OT 1234/
-    └── Rev 0/
+    ├── Rev 0/
+    │   ├── Original/
+    │   ├── Revision/
+    │   ├── Firmas/
+    │   └── Final/
+    └── Rev 1/
         ├── Original/
         ├── Revision/
         ├── Firmas/
         └── Final/
 ```
+
+## Funciones de Autodesk Docs que no se incorporan
+
+Se excluyen porque no forman parte del objetivo de revisión y liberación de planos PDF de SKM:
+
+- Conjuntos y paquetes de archivos.
+- Modelos 3D, ViewCube, secciones y navegación BIM.
+- Revit, extracción automatizada de dibujos e intercambios de datos.
+- Formularios, incidencias fotográficas y herramientas de terreno.
+- Informes de transmisión.
+- Vínculos públicos y colaboración anónima.
+- Sincronización con AutoCAD.
+- Edición de Word, Excel y PowerPoint.
+- Búsquedas guardadas complejas y exploración de duplicados.
+- Plantillas ISO 19650 completas.
+
+La app mantiene una nomenclatura básica y suficiente para SKM, sin implementar el motor completo ISO 19650.
 
 ## Google Cloud
 
@@ -83,7 +132,7 @@ https://www.googleapis.com/auth/drive
 https://www.googleapis.com/auth/spreadsheets
 ```
 
-No se necesita Firebase ni `google-services.json`.
+No se necesita Firebase, servidor propio ni `google-services.json`.
 
 ## Compilación
 
@@ -107,9 +156,9 @@ app/build/outputs/apk/debug/app-debug.apk
 ## Versión actual
 
 ```text
-Version code: 5
-Version name: 5.0.0
+Version code: 6
+Version name: 6.0.0
 Rama: agent/document-management-v2
 ```
 
-El PR permanece en borrador mientras se completa la validación física con cuentas corporativas, planos reales de varias hojas y más de un teléfono.
+El PR permanece en borrador hasta validar físicamente el flujo completo con un PDF real de varias hojas, al menos dos cuentas corporativas y dos teléfonos.
