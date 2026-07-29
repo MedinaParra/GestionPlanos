@@ -96,9 +96,10 @@ Configurar Google Auth Platform como aplicación interna de `skmindustrial.cl` y
 
 ```text
 Package name: cl.skmindustrial.gestionplanos
+SHA-1 validación v4: 7A:16:5A:7B:C3:C7:6F:C9:48:C5:F3:47:33:92:A5:34:88:C9:D4:00
 ```
 
-La SHA-1 debe coincidir con el certificado de la APK instalada. La rama utiliza un certificado debug estable exclusivamente para validación interna.
+El certificado anterior de la primera APK no sirve para esta v4. La rama utiliza el certificado anterior únicamente para pruebas heredadas y un certificado debug estable para las APK v4 y posteriores de validación interna.
 
 Scopes solicitados:
 
