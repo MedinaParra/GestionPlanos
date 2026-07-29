@@ -5,10 +5,12 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.document.data.CommentRepository
 import com.example.document.data.DocumentRepository
 import com.example.document.model.DocumentRecord
 import com.example.document.model.DriveConfiguration
 import com.example.document.model.DriveWorkspace
+import com.example.document.model.PlanComment
 import com.example.document.model.SessionUser
 import com.example.document.model.SignaturePlacement
 import com.example.document.model.UserProfile
@@ -35,6 +37,7 @@ data class DocumentUiState(
     val message: String? = null,
     val previewDocument: DocumentRecord? = null,
     val previewFile: File? = null,
+    val previewComments: List<PlanComment> = emptyList(),
     val signingDocument: DocumentRecord? = null,
     val signingFile: File? = null,
     val profilePhotoFile: File? = null,
@@ -43,6 +46,7 @@ data class DocumentUiState(
 
 class DocumentViewModel(application: Application) : AndroidViewModel(application) {
     private val documentRepository = DocumentRepository(application)
+    private val commentRepository = CommentRepository()
     private val _uiState = MutableStateFlow(DocumentUiState())
     val uiState: StateFlow<DocumentUiState> = _uiState.asStateFlow()
     private var driveAccessToken: String? = null
@@ -73,6 +77,7 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
                 "Información actualizada desde Drive."
             )
             loadProfileAssets()
+            loadPreviewComments()
         }
     }
 
@@ -227,17 +232,79 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
         launchBusy {
             val safeName = document.fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
             val target = File(getApplication<Application>().cacheDir, safeName)
+            val token = requireDriveToken()
             documentRepository.downloadPdf(
-                requireDriveToken(),
+                token,
                 document.currentPdfFileId.ifBlank { document.driveFileId },
                 target
             )
-            _uiState.update { it.copy(previewDocument = document, previewFile = target) }
+            val comments = commentRepository.loadForDocument(
+                token,
+                _uiState.value.configuration,
+                document.id
+            )
+            _uiState.update {
+                it.copy(
+                    previewDocument = document,
+                    previewFile = target,
+                    previewComments = comments
+                )
+            }
+        }
+    }
+
+    fun addComment(
+        document: DocumentRecord,
+        pageIndex: Int,
+        text: String,
+        x: Float,
+        y: Float,
+        width: Float
+    ) {
+        launchBusy {
+            val comments = commentRepository.addComment(
+                user = requireSession(),
+                configuration = _uiState.value.configuration,
+                accessToken = requireDriveToken(),
+                documentId = document.id,
+                pageIndex = pageIndex,
+                text = text,
+                x = x,
+                y = y,
+                width = width
+            )
+            _uiState.update { it.copy(previewComments = comments, message = "Comentario agregado en la hoja ${pageIndex + 1}.") }
+        }
+    }
+
+    fun updateComment(comment: PlanComment) {
+        launchBusy {
+            val comments = commentRepository.updateComment(
+                user = requireSession(),
+                configuration = _uiState.value.configuration,
+                accessToken = requireDriveToken(),
+                comment = comment
+            )
+            _uiState.update { it.copy(previewComments = comments, message = "Comentario actualizado.") }
+        }
+    }
+
+    fun deleteComment(comment: PlanComment) {
+        launchBusy {
+            val comments = commentRepository.deleteComment(
+                user = requireSession(),
+                configuration = _uiState.value.configuration,
+                accessToken = requireDriveToken(),
+                comment = comment
+            )
+            _uiState.update { it.copy(previewComments = comments, message = "Comentario eliminado.") }
         }
     }
 
     fun closePdf() {
-        _uiState.update { it.copy(previewDocument = null, previewFile = null) }
+        _uiState.update {
+            it.copy(previewDocument = null, previewFile = null, previewComments = emptyList())
+        }
     }
 
     fun signOut() {
@@ -265,15 +332,29 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(profilePhotoFile = photo, profileSignatureFile = signature) }
     }
 
+    private suspend fun loadPreviewComments() {
+        val document = _uiState.value.previewDocument ?: return
+        val token = driveAccessToken ?: return
+        val comments = commentRepository.loadForDocument(
+            token,
+            _uiState.value.configuration,
+            document.id
+        )
+        _uiState.update { it.copy(previewComments = comments) }
+    }
+
     private fun applyWorkspace(workspace: DriveWorkspace, message: String) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { current ->
+            val previewId = current.previewDocument?.id
+            val freshPreview = previewId?.let { id -> workspace.documents.firstOrNull { it.id == id } }
+            current.copy(
                 session = workspace.session,
                 configuration = workspace.configuration,
                 documents = workspace.documents,
                 users = workspace.users,
                 settings = workspace.settings,
                 driveConnected = true,
+                previewDocument = freshPreview ?: current.previewDocument,
                 message = message,
                 error = null
             )
