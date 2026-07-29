@@ -453,8 +453,11 @@ class DocumentRepository(context: Context) {
             ?: drive.findFileByName(accessToken, folder.id, SYSTEM_FOLDER_NAME, DriveRestClient.FOLDER_MIME)?.id
             ?: if (folder.canAddChildren) drive.findOrCreateFolder(accessToken, folder.id, SYSTEM_FOLDER_NAME).id else ""
         require(systemFolder.isNotBlank()) { "No se encontró la carpeta de sistema." }
-        fun fileId(currentId: String, parent: String, name: String): String = currentId.takeIf { it.isNotBlank() }
-            ?: runCatching { drive.findFileByName(accessToken, parent, name, DriveRestClient.JSON_MIME)?.id }.getOrNull().orEmpty()
+        suspend fun fileId(currentId: String, parent: String, name: String): String =
+            currentId.takeIf { it.isNotBlank() }
+                ?: runCatching {
+                    drive.findFileByName(accessToken, parent, name, DriveRestClient.JSON_MIME)?.id
+                }.getOrNull().orEmpty()
         var indexId = fileId(current.indexFileId, folder.id, SHARED_INDEX_FILE)
         var usersId = fileId(current.usersFileId, systemFolder, USERS_FILE)
         var settingsId = fileId(current.settingsFileId, systemFolder, SETTINGS_FILE)
