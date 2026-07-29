@@ -2,37 +2,32 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Bento Grid Theme Palette
-val BentoCanvasLight = Color(0xFFF7F9FF)
-val BentoCardBg = Color(0xFFFFFFFF)
-val BentoCardBorder = Color(0xFFE2E8F0)
+// Paleta corporativa SKM Industrial: naranjo, blanco y grafito.
+val SkmOrange = Color(0xFFF57C00)
+val SkmOrangeDark = Color(0xFFC95F00)
+val SkmOrangeLight = Color(0xFFFFE8D1)
+val SkmOrangeSurface = Color(0xFFFFF5EB)
 
-val BentoPrimaryBlue = Color(0xFF2563EB)
-val BentoPrimaryDark = Color(0xFF1D4ED8)
-val BentoPrimaryContainer = Color(0xFFEFF6FF)
-val BentoOnPrimaryContainer = Color(0xFF1E40AF)
+val SkmWhite = Color(0xFFFFFFFF)
+val SkmCanvas = Color(0xFFF5F6F8)
+val SkmSurfaceMuted = Color(0xFFEEF0F3)
+val SkmBorder = Color(0xFFD8DCE2)
 
-val BentoIndigoStart = Color(0xFF2563EB)
-val BentoIndigoEnd = Color(0xFF4338CA)
+val SkmGraphite = Color(0xFF24272C)
+val SkmTextPrimary = Color(0xFF202329)
+val SkmTextSecondary = Color(0xFF606773)
+val SkmTextMuted = Color(0xFF8B929E)
 
-val BentoTextPrimary = Color(0xFF0F172A)
-val BentoTextSecondary = Color(0xFF64748B)
-val BentoTextMuted = Color(0xFF94A3B8)
+val SkmSuccess = Color(0xFF168A4A)
+val SkmSuccessSurface = Color(0xFFE1F4E9)
+val SkmWarning = Color(0xFFB86B00)
+val SkmWarningSurface = Color(0xFFFFEAC7)
+val SkmDanger = Color(0xFFC9362B)
+val SkmDangerSurface = Color(0xFFFFE2DE)
+val SkmInfo = Color(0xFF326FA8)
+val SkmInfoSurface = Color(0xFFE2EFFB)
 
-val BentoSuccessGreen = Color(0xFF10B981)
-val BentoSuccessContainer = Color(0xFFD1FAE5)
-
-val BentoWarningAmber = Color(0xFFF59E0B)
-val BentoWarningContainer = Color(0xFFFEF3C7)
-
-val BentoDangerRed = Color(0xFFEF4444)
-val BentoDangerContainer = Color(0xFFFEE2E2)
-
-val BentoAccentOrange = Color(0xFFF97316)
-val BentoSubtleContainer = Color(0xFFF0F4F8)
-
-// Dark Theme Variants
-val BentoCanvasDark = Color(0xFF0F172A)
-val BentoCardBgDark = Color(0xFF1E293B)
-val BentoCardBorderDark = Color(0xFF334155)
-
+val SkmCanvasDark = Color(0xFF15171A)
+val SkmSurfaceDark = Color(0xFF22252A)
+val SkmSurfaceMutedDark = Color(0xFF30343A)
+val SkmBorderDark = Color(0xFF454A52)
