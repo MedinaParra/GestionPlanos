@@ -26,7 +26,7 @@ data class UserProfile(
     val position: String = "",
     val photoFileId: String = "",
     val signatureFileId: String = "",
-    val role: UserRole = UserRole.USER,
+    val role: UserRole = UserRole.ADMIN,
     val active: Boolean = true,
     val requiredSigner: Boolean = false,
     val placement: SignaturePlacement = SignaturePlacement(),
