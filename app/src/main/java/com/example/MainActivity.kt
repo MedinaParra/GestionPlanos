@@ -20,8 +20,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.document.model.DocumentRecord
 import com.example.document.model.SignaturePlacement
 import com.example.document.notifications.ReviewReminderWorker
-import com.example.document.ui.DocumentApp
 import com.example.document.ui.DocumentViewModel
+import com.example.document.ui.EnhancedDocumentApp
 import com.example.ui.theme.MyApplicationTheme
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
@@ -77,7 +77,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             MyApplicationTheme {
                 val state = viewModel.uiState.collectAsStateWithLifecycle().value
-                DocumentApp(
+                EnhancedDocumentApp(
                     state = state,
                     onConnectDrive = ::requestDriveAuthorization,
                     onRefresh = viewModel::refreshDashboard,
@@ -92,7 +92,10 @@ class MainActivity : FragmentActivity() {
                     onSignOut = viewModel::signOut,
                     onClosePdf = viewModel::closePdf,
                     onCancelSignaturePlacement = viewModel::cancelSignaturePlacement,
-                    onClearFeedback = viewModel::clearFeedback
+                    onClearFeedback = viewModel::clearFeedback,
+                    onAddComment = viewModel::addComment,
+                    onUpdateComment = viewModel::updateComment,
+                    onDeleteComment = viewModel::deleteComment
                 )
             }
         }
