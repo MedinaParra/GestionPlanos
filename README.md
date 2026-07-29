@@ -108,6 +108,8 @@ APK:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
+Tamaño: 31.159.257 bytes
+SHA-256: 163caf480ac36e5e215407a4264f180e481daa74056adef88e5a7b3099bae81c
 ```
 
 ## Versión actual
