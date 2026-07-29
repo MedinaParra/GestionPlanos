@@ -99,7 +99,7 @@ Package name: cl.skmindustrial.gestionplanos
 SHA-1 validación v4: 7A:16:5A:7B:C3:C7:6F:C9:48:C5:F3:47:33:92:A5:34:88:C9:D4:00
 ```
 
-El certificado anterior de la primera APK no sirve para esta v4. La rama utiliza el certificado anterior únicamente para pruebas heredadas y un certificado debug estable para las APK v4 y posteriores de validación interna.
+La APK v4 y las siguientes APK debug de esta rama usan un certificado de validación estable. La SHA-1 anterior `E1:C0:BB:...` correspondía a la APK inicial y no autoriza esta nueva versión.
 
 Scopes solicitados:
 
