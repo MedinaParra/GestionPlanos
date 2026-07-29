@@ -1,82 +1,60 @@
 # SKM Industrial Gestión de Planos
 
-Aplicación Android para controlar planos PDF, observaciones, revisiones, aprobaciones y firmas usando Google Drive como repositorio documental.
+Aplicación Android para administrar planos PDF, revisiones, firmas, observaciones y aprobación para fabricación usando Google Drive.
 
-La versión 6 toma los principios útiles del flujo de Autodesk Docs, pero los reduce a un proceso específico para SKM Industrial. No intenta reproducir todos los módulos de Autodesk Construction Cloud.
+## Interfaz corporativa v7
 
-## Flujo oficial
+La navegación fue reorganizada sin modificar el flujo documental ni la persistencia existente:
 
-```text
-1. Administrador carga PDF y define OT, código y revisión
-2. La app crea OT XXX / Rev N y genera la copia NO APTO
-3. El plano queda EN REVISIÓN y se asigna al primer revisor
-4. El revisor puede crear borradores privados y publicar observaciones
-5. El revisor decide:
-   ├── Aprobar y firmar
-   └── Solicitar cambios
-6. Si aprueba, el turno pasa al siguiente revisor
-7. Si solicita cambios, el flujo se detiene hasta cargar una nueva revisión
-8. Al aprobar todos, se genera el PDF APTO PARA FABRICACIÓN
-```
+- Paleta corporativa naranja, blanco y grafito.
+- Menú lateral con Inicio, Planos, Mis revisiones, Usuarios y firmantes, Notificaciones, Mi perfil, Configuración y Ayuda.
+- Cerrar sesión aislado al final del menú lateral.
+- Sincronización ubicada en la barra superior, lejos de cerrar sesión.
+- Panel de inicio con indicadores y accesos rápidos.
+- Configuración de Drive y plazos centralizada en una sola pantalla.
+- Perfil y administración de usuarios como pantallas completas, no como formularios comprimidos.
 
-La aprobación es secuencial para evitar que dos personas modifiquen simultáneamente la misma copia firmada.
+## Adaptación a pantallas
 
-## Estados visibles
+La versión 7 usa layouts adaptativos de Jetpack Compose:
 
-- `En revisión`
-- `Cambios solicitados`
-- `Apto para fabricación`
+- Respeta barras de estado, gestos y navegación del teléfono mediante `WindowInsets.safeDrawing`.
+- Respeta la aparición del teclado mediante `imePadding`.
+- Formularios y diálogos largos tienen desplazamiento vertical real.
+- Acciones principales quedan en barras inferiores fijas y accesibles.
+- Botones se apilan verticalmente en pantallas estrechas.
+- Tarjetas de indicadores cambian de cuatro columnas a una cuadrícula de dos por dos.
+- Herramientas del visor usan desplazamiento horizontal para evitar cortes.
+- El contenido principal limita su ancho en pantallas grandes sin romper teléfonos pequeños.
 
-## Funciones mantenidas
+## Visor PDF
 
-- Acceso con cuenta Google corporativa.
-- Organización automática por `OT XXX / Rev N`.
-- Norma mínima de nombre: OT, código de plano y revisión.
-- Copia roja translúcida `NO APTO PARA FABRICACIÓN` durante la revisión.
-- Visor PDF con zoom de 100 % a 600 % y desplazamiento.
-- Observaciones ubicadas en una hoja y posición del plano.
-- Borradores privados almacenados en el Drive personal del autor.
-- Publicación de observaciones para todos los miembros del proyecto.
-- Solicitud de cambios con motivo obligatorio.
-- Aprobación y firma confirmada mediante biometría o bloqueo del teléfono.
-- Firma acumulativa con nombre, cargo, RUT, fecha, hora y firma manual.
-- Historial de carga, observaciones, aprobaciones, solicitudes de cambios y cierre.
-- Panel de administración de usuarios y firmantes obligatorios.
-- Notificaciones locales a las 08:00 y 15:00, con escalamiento después de 36 horas.
-- PDF final azul `APTO PARA FABRICACIÓN` cuando todos aprueban.
+- Pantalla completa.
+- Zoom entre 100 % y 600 % mediante gesto de pinza o botones.
+- Desplazamiento con dos dedos.
+- Navegación de páginas fija.
+- Lista de observaciones e historial accesibles desde la barra superior.
+- Botón visible **Nueva observación**.
+- Después de tocar el plano se abre un editor de texto de pantalla completa.
+- El editor mantiene Guardar, Publicar y Cancelar visibles sobre el teclado.
+- Borradores privados y observaciones publicadas conservan el comportamiento de la versión 6.
+- Aprobar, firmar y solicitar cambios permanecen en la barra inferior.
 
-## Observaciones privadas y publicadas
+## Flujo documental
 
-Los comentarios no alteran el PDF original.
-
-### Borrador privado
-
-- Se guarda en `GestionPlanosSKM-Privado/comentarios-borradores.json` dentro del Drive del autor.
-- Solo el autor puede verlo, editarlo, reubicarlo, publicarlo o eliminarlo.
-- No queda almacenado en la carpeta compartida del proyecto.
-
-### Observación publicada
-
-- Se guarda en `GestionPlanos-Sistema/comentarios-publicados.json`.
-- Todos los usuarios del proyecto pueden verla.
-- El autor o un administrador puede editarla o eliminarla.
-- Los comentarios creados con versiones anteriores se migran como publicados.
-
-## Solicitar cambios
-
-El revisor que tiene el turno puede detener la revisión y escribir el motivo. El documento pasa a `CAMBIOS_SOLICITADOS`, deja de generar avisos de firma y no puede seguir firmándose.
-
-El administrador debe corregir el plano y cargar una revisión nueva, por ejemplo `Rev 1`. La revisión anterior se conserva como historial y no se sobrescribe.
+1. El administrador carga un PDF con OT, código y revisión.
+2. La app crea `OT XXX / Rev N`, conserva el original y genera la copia roja `NO APTO PARA FABRICACIÓN`.
+3. El documento queda `EN_REVISIÓN` y se asigna secuencialmente a los firmantes obligatorios.
+4. Cada revisor puede crear observaciones como borradores privados y publicarlas cuando estén listas.
+5. El revisor decide entre **Aprobar y firmar** o **Solicitar cambios**.
+6. Al aprobar, se agrega el timbre y la firma en todas las hojas y el turno pasa al siguiente revisor.
+7. Al solicitar cambios, el flujo se detiene y el administrador debe cargar una revisión nueva.
+8. Cuando todos aprueban, se genera el PDF azul `APTO PARA FABRICACIÓN`.
 
 ## Estructura de Drive
 
 ```text
-Drive privado de cada usuario/
-└── GestionPlanosSKM-Privado/
-    ├── claves-configuracion.json
-    └── comentarios-borradores.json
-
-Carpeta principal compartida/
+Carpeta principal/
 ├── GestionPlanos-Sistema/
 │   ├── usuarios.json
 │   ├── configuracion-flujo.json
@@ -85,38 +63,16 @@ Carpeta principal compartida/
 ├── control-documental.json
 ├── Control de Documentos SKM
 └── OT 1234/
-    ├── Rev 0/
-    │   ├── Original/
-    │   ├── Revision/
-    │   ├── Firmas/
-    │   └── Final/
-    └── Rev 1/
+    └── Rev 0/
         ├── Original/
         ├── Revision/
         ├── Firmas/
         └── Final/
 ```
 
-## Funciones de Autodesk Docs que no se incorporan
-
-Se excluyen porque no forman parte del objetivo de revisión y liberación de planos PDF de SKM:
-
-- Conjuntos y paquetes de archivos.
-- Modelos 3D, ViewCube, secciones y navegación BIM.
-- Revit, extracción automatizada de dibujos e intercambios de datos.
-- Formularios, incidencias fotográficas y herramientas de terreno.
-- Informes de transmisión.
-- Vínculos públicos y colaboración anónima.
-- Sincronización con AutoCAD.
-- Edición de Word, Excel y PowerPoint.
-- Búsquedas guardadas complejas y exploración de duplicados.
-- Plantillas ISO 19650 completas.
-
-La app mantiene una nomenclatura básica y suficiente para SKM, sin implementar el motor completo ISO 19650.
+Los borradores privados se guardan dentro de `GestionPlanosSKM-Privado/comentarios-borradores.json` en el Drive personal del autor.
 
 ## Google Cloud
-
-Cliente OAuth Android:
 
 ```text
 Package: cl.skmindustrial.gestionplanos
@@ -132,7 +88,7 @@ https://www.googleapis.com/auth/drive
 https://www.googleapis.com/auth/spreadsheets
 ```
 
-No se necesita Firebase, servidor propio ni `google-services.json`.
+No se necesita Firebase ni `google-services.json`.
 
 ## Compilación
 
@@ -156,9 +112,9 @@ app/build/outputs/apk/debug/app-debug.apk
 ## Versión actual
 
 ```text
-Version code: 6
-Version name: 6.0.0
+Version code: 7
+Version name: 7.0.0
 Rama: agent/document-management-v2
 ```
 
-El PR permanece en borrador hasta validar físicamente el flujo completo con un PDF real de varias hojas, al menos dos cuentas corporativas y dos teléfonos.
+El PR permanece en borrador mientras se completa la validación física en teléfonos de distintas dimensiones, con tamaño de fuente aumentado, teclado abierto y navegación por gestos o botones.
