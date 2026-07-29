@@ -31,13 +31,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.3.1
+      - name: Restore stable debug keystore
+        run: base64 --decode .github/ci-debug-keystore.b64 > app/ci-debug.keystore
       - name: Run unit tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
+      - name: Verify signing certificate
+        run: keytool -printcert -jarfile app/build/outputs/apk/debug/app-debug.apk
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: gestion-planos-drive-debug-apk
+          name: gestion-planos-workflow-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
