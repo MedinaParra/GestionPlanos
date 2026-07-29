@@ -14,13 +14,18 @@ android {
     applicationId = "cl.skmindustrial.gestionplanos"
     minSdk = 24
     targetSdk = 36
-    versionCode = 3
-    versionName = "3.0.0"
-
+    versionCode = 4
+    versionName = "4.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
+    create("ciDebug") {
+      storeFile = file("ci-debug.keystore")
+      storePassword = "GestionPlanos2026"
+      keyAlias = "gestionplanos"
+      keyPassword = "GestionPlanos2026"
+    }
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH")
       if (!keystorePath.isNullOrBlank()) {
@@ -33,13 +38,14 @@ android {
   }
 
   buildTypes {
+    debug {
+      if (file("ci-debug.keystore").exists()) signingConfig = signingConfigs.getByName("ciDebug")
+    }
     release {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      if (!System.getenv("KEYSTORE_PATH").isNullOrBlank()) {
-        signingConfig = signingConfigs.getByName("release")
-      }
+      if (!System.getenv("KEYSTORE_PATH").isNullOrBlank()) signingConfig = signingConfigs.getByName("release")
     }
   }
 
@@ -63,7 +69,6 @@ secrets {
 
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.biometric)
   implementation(libs.androidx.fragment.ktx)
@@ -80,8 +85,9 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.play.services.auth)
-
+  implementation(libs.pdfbox.android)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.kotlinx.coroutines.play.services)
@@ -97,7 +103,6 @@ dependencies {
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)
-  testImplementation(libs.roborazzi)
   testImplementation(libs.roborazzi.compose)
   testImplementation(libs.roborazzi.junit.rule)
   androidTestImplementation(platform(libs.androidx.compose.bom))
