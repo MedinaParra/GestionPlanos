@@ -26,6 +26,7 @@ La versión 7 usa layouts adaptativos de Jetpack Compose:
 - Tarjetas de indicadores cambian de cuatro columnas a una cuadrícula de dos por dos.
 - Herramientas del visor usan desplazamiento horizontal para evitar cortes.
 - El contenido principal limita su ancho en pantallas grandes sin romper teléfonos pequeños.
+- La interfaz evita depender de una resolución fija o una relación de aspecto específica.
 
 ## Visor PDF
 
