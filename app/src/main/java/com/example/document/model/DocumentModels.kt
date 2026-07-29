@@ -120,7 +120,8 @@ data class DocumentRecord(
         get() = requiredReviewerEmails.getOrNull(currentReviewerIndex).orEmpty()
     val completed: Boolean
         get() = status == "APTO_PARA_FABRICACIÓN"
-    fun canBeSignedBy(email: String): Boolean = !completed && currentReviewerEmail.equals(email, ignoreCase = true)
+    fun canBeSignedBy(email: String): Boolean =
+        status == "EN_REVISIÓN" && currentReviewerEmail.equals(email, ignoreCase = true)
 }
 
 data class DriveWorkspace(
