@@ -60,11 +60,11 @@ class ReviewReminderWorker(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val title = if (escalated) "Revisión atrasada" else "Firmas pendientes"
+        val title = if (escalated) "Revisión de plano atrasada" else "Revisiones de planos pendientes"
         val body = if (count == 1) {
-            "Tienes 1 plano pendiente de revisión y firma."
+            "Tienes 1 plano pendiente: revisa, comenta, aprueba o solicita cambios."
         } else {
-            "Tienes $count planos pendientes de revisión y firma."
+            "Tienes $count planos pendientes: revisa, comenta, aprueba o solicita cambios."
         }
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -125,7 +125,7 @@ class ReviewReminderWorker(
                     "Revisiones de planos",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Recordatorios de documentos pendientes de revisión y firma"
+                    description = "Recordatorios de documentos pendientes de revisión y decisión"
                 }
             )
         }
