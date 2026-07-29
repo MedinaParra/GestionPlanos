@@ -1,121 +1,110 @@
-# Gestión de Planos SKM — versión directa con Google Drive
+# SKM Industrial Gestión de Planos
 
-Aplicación Android para cargar, visualizar, renombrar y controlar planos PDF usando directamente una cuenta de Google Drive. La aplicación no necesita Firebase, servidor, base de datos, Cloud Functions ni usuarios internos.
+Aplicación Android de control documental conectada directamente a Google Drive. Administra OT, revisiones, perfiles de usuario, firmas manuales confirmadas con biometría o PIN y generación automática de copias `NO APTO PARA FABRICACIÓN` y `APTO PARA FABRICACIÓN`.
 
-## Funcionamiento simplificado
+No necesita Firebase, servidor propio ni base de datos externa. Los archivos de control y los PDF se mantienen en la carpeta de Google Drive elegida por el administrador.
 
-1. El usuario conecta su propia cuenta Google y autoriza Drive y Sheets.
-2. La aplicación crea en `Mi unidad` una carpeta privada llamada `GestionPlanosSKM-Privado`.
-3. Dentro de esa carpeta guarda `claves-configuracion.json`, que contiene solamente IDs y configuración técnica. No almacena contraseñas, PIN ni datos biométricos.
-4. El usuario pega el enlace de una carpeta normal de Drive que utilizará para los planos.
-5. Los permisos de esa carpeta se administran directamente desde Google Drive:
-   - **Lector:** puede abrir PDF y ver el control documental.
-   - **Editor:** puede cargar PDF, cambiar revisiones y firmar.
-6. La aplicación crea dentro de la carpeta compartida:
-   - Los PDF administrados.
-   - `control-documental.json` con el índice y los estados.
-   - Una planilla `Control de Documentos SKM`.
-7. Para marcar o quitar una firma, Android exige huella, rostro o PIN/patrón/clave del teléfono.
+## Flujo de revisión implementado
 
-## Capacidades implementadas
+Se utiliza revisión **secuencial** para evitar conflictos entre dos personas que firmen al mismo tiempo:
 
-- Acceso directo de lectura y escritura a Google Drive.
-- Compatible con una carpeta normal o compartida de Drive.
-- Detección automática de permiso de lectura o escritura mediante las capacidades de Drive.
-- Carga de PDF de hasta 40 MB.
-- Visor PDF dentro de la aplicación.
-- Cambio de revisión con renombrado real del PDF en Drive.
-- Índice documental JSON compartido.
-- Planilla Google Sheets sincronizada.
-- Firma mediante la ventana oficial de seguridad de Android.
-- Registro de firmante, correo, fecha y método de confirmación.
-- Acceso mediante cualquier cuenta Google autorizada, sin depender de Firebase.
+1. El administrador selecciona qué usuarios son firmantes obligatorios.
+2. Al subir un plano se guarda el original y se crea una copia con sello rojo translúcido `NO APTO PARA FABRICACIÓN` en todas las hojas.
+3. La app asigna el turno al primer firmante.
+4. Cada firmante mueve su timbre sobre una vista del plano, confirma con huella o PIN y genera una nueva copia acumulativa.
+5. El turno pasa al siguiente firmante.
+6. Cuando firma el último usuario, se crea el PDF final con todas las firmas y el sello azul `APTO PARA FABRICACIÓN` en todas las hojas.
 
-## Archivos creados en Drive
+Antes de firmar, la app vuelve a leer el índice desde Drive para verificar que el turno siga correspondiendo al usuario.
 
-### Carpeta privada del usuario
+## Perfiles y administración de usuarios
+
+Cada cuenta Google que abre la carpeta queda registrada en `usuarios.json`. La primera cuenta registrada queda como `ADMIN`.
+
+Cada usuario puede completar:
+
+- Nombre completo.
+- RUT.
+- Cargo.
+- Foto de perfil.
+- Firma manual dibujada en pantalla.
+- Tamaño predeterminado de su timbre.
+
+El administrador puede:
+
+- Activar o desactivar usuarios.
+- Asignar rol `ADMIN`, `REVIEWER` o `USER`.
+- Definir quién debe firmar obligatoriamente.
+- Configurar los días disponibles para revisión.
+
+## Información incluida en cada timbre
+
+La firma se aplica en todas las hojas e incluye:
+
+- Firma manual.
+- Nombre completo.
+- Cargo.
+- RUT.
+- Fecha.
+- Hora.
+- Identificación de SKM Industrial.
+
+La huella, rostro, PIN, patrón o contraseña no se guardan. Android solo devuelve a la aplicación si la autenticación local fue correcta o cancelada.
+
+## Estructura creada en Drive
 
 ```text
-Mi unidad/
-└── GestionPlanosSKM-Privado/
-    └── claves-configuracion.json
-```
-
-`claves-configuracion.json` guarda:
-
-- ID de la carpeta compartida.
-- ID de la planilla.
-- ID del índice documental.
-- Nombre visible de la carpeta.
-- Última actualización.
-
-No contiene contraseñas ni tokens OAuth permanentes.
-
-### Carpeta compartida de planos
-
-```text
-Carpeta elegida por el usuario/
-├── Control de Documentos SKM
+Carpeta principal/
+├── GestionPlanos-Sistema/
+│   ├── usuarios.json
+│   └── configuracion-flujo.json
 ├── control-documental.json
-├── CODIGO_REV-A_archivo.pdf
-└── otros planos PDF
+├── Control de Documentos SKM
+└── OT 1234/
+    └── Rev 0/
+        ├── Original/
+        │   └── ORIGINAL_codigo.pdf
+        ├── Revision/
+        │   └── NO_APTO_codigo.pdf
+        ├── Firmas/
+        │   ├── 01_usuario_codigo.pdf
+        │   └── 02_usuario_codigo.pdf
+        └── Final/
+            └── APTO_codigo.pdf
 ```
 
-## Configuración de Google Cloud
+Una nueva revisión crea otra carpeta, por ejemplo `Rev 1`, sin eliminar el historial de `Rev 0`.
 
-Solo se necesita un proyecto Google Cloud.
+## Notificaciones
 
-### 1. Crear el proyecto
+La aplicación programa una verificación local periódica mediante WorkManager:
 
-Crea o selecciona un proyecto en Google Cloud Console, por ejemplo:
+- Recordatorio durante la franja de las 08:00.
+- Recordatorio durante la franja de las 15:00.
+- Después de 36 horas con una firma pendiente, recordatorio aproximadamente cada hora.
 
-```text
-Gestion Planos SKM
-```
+Estas notificaciones son locales y dependen del último estado sincronizado al conectar o actualizar la aplicación. Android puede retrasarlas por ahorro de batería; no equivalen a notificaciones push desde un servidor.
 
-### 2. Habilitar APIs
+## Google Cloud
 
-En **APIs y servicios > Biblioteca**, habilita:
+Habilitar:
 
 - Google Drive API.
 - Google Sheets API.
 
-### 3. Configurar consentimiento OAuth
-
-En **Google Auth Platform** configura:
-
-- Nombre de aplicación: `Gestión de Planos SKM`.
-- Correo de soporte.
-- Audiencia interna si el proyecto pertenece al Google Workspace de SKM; de lo contrario usa audiencia externa para pruebas.
-- Agrega como usuarios de prueba las cuentas que instalarán la APK cuando la aplicación siga en modo de prueba.
-
-La aplicación solicita estos scopes:
-
-```text
-https://www.googleapis.com/auth/drive
-https://www.googleapis.com/auth/spreadsheets
-```
-
-El scope de Drive permite leer, crear, renombrar y modificar archivos de la cuenta que concede el permiso.
-
-### 4. Crear cliente OAuth Android
-
-Crea una credencial OAuth de tipo **Android** con:
+Configurar Google Auth Platform como aplicación interna de `skmindustrial.cl` y crear un cliente OAuth Android con:
 
 ```text
 Package name: cl.skmindustrial.gestionplanos
 ```
 
-Agrega la huella SHA-1 del certificado con el que se firma la APK.
+La SHA-1 debe coincidir con el certificado de la APK instalada. La rama utiliza un certificado debug estable exclusivamente para validación interna.
 
-Para obtener la huella debug en Windows:
+Scopes solicitados:
 
-```powershell
-keytool -list -v `
-  -alias androiddebugkey `
-  -keystore "$env:USERPROFILE\.android\debug.keystore" `
-  -storepass android `
-  -keypass android
+```text
+https://www.googleapis.com/auth/drive
+https://www.googleapis.com/auth/spreadsheets
 ```
 
 No se necesita `google-services.json`.
@@ -126,58 +115,31 @@ Requisitos:
 
 - JDK 17.
 - Android SDK 36.
-- Gradle 9.3.1 o Android Studio.
+- Gradle 9.3.1.
 
 ```bash
 gradle --no-daemon testDebugUnitTest
 gradle --no-daemon assembleDebug
 ```
 
-APK generado:
+APK:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Primer uso
+## Validación pendiente
 
-1. Instala la APK.
-2. Presiona **Conectar mi Google Drive**.
-3. Selecciona la cuenta y acepta Drive y Sheets.
-4. La app creará `GestionPlanosSKM-Privado` en tu Drive.
-5. Crea manualmente la carpeta de planos en Drive.
-6. Desde Drive, comparte esa carpeta con las personas necesarias como lectoras o editoras.
-7. En la aplicación, presiona **Elegir carpeta** y pega el enlace.
-8. Agrega el primer PDF.
-9. Para firmar, pulsa **Firmar con huella o PIN** y confirma en la ventana de Android.
+Aunque CI comprueba compilación y pruebas unitarias, antes de fusionar se debe validar físicamente:
 
-## Firma con huella o PIN
+- Conexión con una cuenta real `@skmindustrial.cl`.
+- Creación de la estructura OT/Rev en Drive.
+- Aplicación de sellos sobre PDF reales de varias hojas.
+- Firma secuencial con dos o más teléfonos.
+- Comportamiento de notificaciones bajo ahorro de batería.
 
-La aplicación no lee ni guarda la huella, el rostro, el PIN, el patrón o la contraseña del teléfono. Android realiza la validación y devuelve solamente un resultado de éxito o cancelación.
-
-Después de una validación correcta se registra:
-
-- Nombre de la cuenta Google.
-- Correo de la cuenta.
-- Fecha y hora.
-- Método general utilizado: biometría o credencial del teléfono.
-- Estado `FIRMADO`.
-
-Esta función corresponde a una aprobación o firma interna de flujo documental. No inserta un certificado digital en el PDF y no equivale por sí sola a una firma electrónica avanzada.
-
-## Seguridad práctica
-
-- No se guardan contraseñas de usuarios en Drive.
-- Los permisos dependen de las reglas normales de Google Drive.
-- Una persona con permiso de lector no puede modificar la carpeta mediante la aplicación.
-- Una persona con permiso de editor sí puede actualizar el índice, la planilla y los PDF.
-- La carpeta privada no debe compartirse.
-- La carpeta de planos sí se comparte desde Drive según las necesidades del equipo.
-
-## Rama de desarrollo
+Rama:
 
 ```text
 agent/document-management-v2
 ```
-
-El PR permanece en borrador hasta validar el flujo con una cuenta Google real y una carpeta compartida real.
