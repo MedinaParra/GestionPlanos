@@ -20,8 +20,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.document.model.DocumentRecord
 import com.example.document.model.SignaturePlacement
 import com.example.document.notifications.ReviewReminderWorker
-import com.example.document.ui.DocumentViewModel
-import com.example.document.ui.EnhancedDocumentApp
+import com.example.document.ui.WorkflowDocumentApp
+import com.example.document.ui.WorkflowViewModel
 import com.example.ui.theme.MyApplicationTheme
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
@@ -30,7 +30,7 @@ import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 
 class MainActivity : FragmentActivity() {
-    private val viewModel: DocumentViewModel by viewModels()
+    private val viewModel: WorkflowViewModel by viewModels()
     private lateinit var authorizationClient: AuthorizationClient
     private var pendingSignature: Pair<DocumentRecord, SignaturePlacement>? = null
 
@@ -77,14 +77,17 @@ class MainActivity : FragmentActivity() {
         setContent {
             MyApplicationTheme {
                 val state = viewModel.uiState.collectAsStateWithLifecycle().value
-                EnhancedDocumentApp(
+                val timeline = viewModel.timeline.collectAsStateWithLifecycle().value
+                WorkflowDocumentApp(
                     state = state,
+                    timeline = timeline,
                     onConnectDrive = ::requestDriveAuthorization,
                     onRefresh = viewModel::refreshDashboard,
                     onUploadPdf = viewModel::uploadPdf,
                     onOpenPdf = viewModel::openPdf,
                     onPrepareSignature = viewModel::prepareSignature,
                     onRequestSignature = ::requestDeviceAuthentication,
+                    onRequestChanges = viewModel::requestChanges,
                     onConfigureDrive = viewModel::configureDriveFolder,
                     onSaveProfile = viewModel::saveOwnProfile,
                     onUpdateUser = viewModel::updateUserByAdmin,
@@ -94,6 +97,7 @@ class MainActivity : FragmentActivity() {
                     onCancelSignaturePlacement = viewModel::cancelSignaturePlacement,
                     onClearFeedback = viewModel::clearFeedback,
                     onAddComment = viewModel::addComment,
+                    onPublishComment = viewModel::publishComment,
                     onUpdateComment = viewModel::updateComment,
                     onDeleteComment = viewModel::deleteComment
                 )
@@ -186,9 +190,9 @@ class MainActivity : FragmentActivity() {
             }
         )
         val builder = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Firmar plano")
+            .setTitle("Aprobar y firmar plano")
             .setSubtitle("OT ${document.otNumber} · ${document.code} · Rev ${document.revision}")
-            .setDescription("Confirma tu identidad para aplicar tu firma y timbre en todas las hojas.")
+            .setDescription("Confirma tu identidad para registrar la aprobación y aplicar tu timbre en todas las hojas.")
             .setAllowedAuthenticators(authenticators)
             .setConfirmationRequired(true)
         if (allowPinButton) builder.setNegativeButtonText("Usar PIN del teléfono")
@@ -204,7 +208,7 @@ class MainActivity : FragmentActivity() {
             return
         }
         val intent = keyguard.createConfirmDeviceCredentialIntent(
-            "Firmar plano",
+            "Aprobar y firmar plano",
             "Confirma el bloqueo del teléfono para continuar con ${document.code}."
         ) ?: run {
             pendingSignature = null
