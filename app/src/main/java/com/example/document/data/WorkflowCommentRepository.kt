@@ -3,6 +3,9 @@ package com.example.document.data
 import com.example.document.drive.DriveRestClient
 import com.example.document.model.DriveConfiguration
 import com.example.document.model.PlanComment
+import com.example.document.model.ReviewMarkupInput
+import com.example.document.model.ReviewMarkupType
+import com.example.document.model.ReviewPoint
 import com.example.document.model.SessionUser
 import org.json.JSONArray
 import org.json.JSONObject
@@ -36,21 +39,54 @@ class WorkflowCommentRepository(
         x: Float,
         y: Float,
         width: Float
+    ): List<PlanComment> = addMarkupDraft(
+        user = user,
+        configuration = configuration,
+        accessToken = accessToken,
+        documentId = documentId,
+        input = ReviewMarkupInput(
+            pageIndex = pageIndex,
+            type = ReviewMarkupType.TEXT,
+            text = text,
+            x = x,
+            y = y,
+            width = width,
+            height = 0.10f
+        )
+    )
+
+    suspend fun addMarkupDraft(
+        user: SessionUser,
+        configuration: DriveConfiguration,
+        accessToken: String,
+        documentId: String,
+        input: ReviewMarkupInput
     ): List<PlanComment> {
         require(configuration.canEdit) { "No tienes permiso para crear observaciones en este proyecto." }
         require(configuration.privateFolderId.isNotBlank()) { "No se encontró tu carpeta privada de trabajo." }
         require(user.profile.active) { "Tu usuario está desactivado." }
-        val cleanText = validateText(text)
+
+        val cleanText = validateMarkup(input.type, input.text, input.points)
         val store = loadPrivateDrafts(accessToken, configuration, createIfMissing = true)
         val now = System.currentTimeMillis()
         val comment = PlanComment(
             id = UUID.randomUUID().toString(),
             documentId = documentId,
-            pageIndex = pageIndex.coerceAtLeast(0),
+            pageIndex = input.pageIndex.coerceAtLeast(0),
             text = cleanText,
-            x = x.coerceIn(0f, 0.90f),
-            y = y.coerceIn(0f, 0.92f),
-            width = width.coerceIn(0.22f, 0.62f),
+            x = input.x.coerceIn(0f, 1f),
+            y = input.y.coerceIn(0f, 1f),
+            width = input.width.coerceIn(0.01f, 1f),
+            height = input.height.coerceIn(0.01f, 1f),
+            endX = input.endX.coerceIn(0f, 1f),
+            endY = input.endY.coerceIn(0f, 1f),
+            markupType = input.type,
+            colorArgb = input.colorArgb,
+            strokeWidth = input.strokeWidth.coerceIn(0.001f, 0.04f),
+            opacity = input.opacity.coerceIn(0.08f, 1f),
+            points = input.points.take(MAX_POINTS).map { point ->
+                ReviewPoint(point.x.coerceIn(0f, 1f), point.y.coerceIn(0f, 1f))
+            },
             authorName = user.profile.displayName.ifBlank { user.displayName },
             authorEmail = user.email,
             published = false,
@@ -100,7 +136,7 @@ class WorkflowCommentRepository(
         comment: PlanComment
     ): List<PlanComment> {
         require(configuration.canEdit) { "No tienes permiso para modificar observaciones." }
-        val cleanText = validateText(comment.text)
+        val cleanText = validateMarkup(comment.markupType, comment.text, comment.points)
         val store = if (comment.published) {
             loadPublished(accessToken, configuration, createIfMissing = true)
         } else {
@@ -119,9 +155,17 @@ class WorkflowCommentRepository(
         val updatedComment = existing.copy(
             text = cleanText,
             pageIndex = comment.pageIndex.coerceAtLeast(0),
-            x = comment.x.coerceIn(0f, 0.90f),
-            y = comment.y.coerceIn(0f, 0.92f),
-            width = comment.width.coerceIn(0.22f, 0.62f),
+            x = comment.x.coerceIn(0f, 1f),
+            y = comment.y.coerceIn(0f, 1f),
+            width = comment.width.coerceIn(0.01f, 1f),
+            height = comment.height.coerceIn(0.01f, 1f),
+            endX = comment.endX.coerceIn(0f, 1f),
+            endY = comment.endY.coerceIn(0f, 1f),
+            markupType = comment.markupType,
+            colorArgb = comment.colorArgb,
+            strokeWidth = comment.strokeWidth.coerceIn(0.001f, 0.04f),
+            opacity = comment.opacity.coerceIn(0.08f, 1f),
+            points = comment.points.take(MAX_POINTS).map { ReviewPoint(it.x.coerceIn(0f, 1f), it.y.coerceIn(0f, 1f)) },
             updatedAt = System.currentTimeMillis()
         )
         saveStore(
@@ -180,10 +224,19 @@ class WorkflowCommentRepository(
             .sortedWith(compareBy<PlanComment> { it.pageIndex }.thenBy { it.createdAt })
     }
 
-    private fun validateText(value: String): String {
-        val clean = value.trim()
-        require(clean.isNotBlank()) { "Escribe una observación." }
+    private fun validateMarkup(
+        type: ReviewMarkupType,
+        text: String,
+        points: List<ReviewPoint>
+    ): String {
+        val clean = text.trim()
         require(clean.length <= 1200) { "La observación supera los 1.200 caracteres." }
+        if (type == ReviewMarkupType.TEXT) {
+            require(clean.isNotBlank()) { "Escribe una observación." }
+        }
+        if (type == ReviewMarkupType.FREEHAND || type == ReviewMarkupType.HIGHLIGHT) {
+            require(points.size >= 2) { "El trazo es demasiado corto." }
+        }
         return clean
     }
 
@@ -267,6 +320,21 @@ class WorkflowCommentRepository(
         return buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
+                val pointsArray = item.optJSONArray("points") ?: JSONArray()
+                val points = buildList {
+                    for (pointIndex in 0 until pointsArray.length()) {
+                        val point = pointsArray.optJSONObject(pointIndex) ?: continue
+                        add(
+                            ReviewPoint(
+                                x = point.optDouble("x", 0.0).toFloat(),
+                                y = point.optDouble("y", 0.0).toFloat()
+                            )
+                        )
+                    }
+                }
+                val type = runCatching {
+                    ReviewMarkupType.valueOf(item.optString("markupType", ReviewMarkupType.TEXT.name))
+                }.getOrDefault(ReviewMarkupType.TEXT)
                 add(
                     PlanComment(
                         id = item.optString("id"),
@@ -276,6 +344,14 @@ class WorkflowCommentRepository(
                         x = item.optDouble("x", 0.08).toFloat(),
                         y = item.optDouble("y", 0.10).toFloat(),
                         width = item.optDouble("width", 0.36).toFloat(),
+                        height = item.optDouble("height", 0.10).toFloat(),
+                        endX = item.optDouble("endX", 0.30).toFloat(),
+                        endY = item.optDouble("endY", 0.20).toFloat(),
+                        markupType = type,
+                        colorArgb = item.optLong("colorArgb", 0xFFFF6A00L).toInt(),
+                        strokeWidth = item.optDouble("strokeWidth", 0.004).toFloat(),
+                        opacity = item.optDouble("opacity", 1.0).toFloat(),
+                        points = points,
                         authorName = item.optString("authorName"),
                         authorEmail = item.optString("authorEmail"),
                         published = if (item.has("published")) item.optBoolean("published") else defaultPublished,
@@ -300,6 +376,10 @@ class WorkflowCommentRepository(
     private fun commentsJson(comments: List<PlanComment>): String {
         val array = JSONArray()
         comments.sortedBy { it.createdAt }.forEach { comment ->
+            val points = JSONArray()
+            comment.points.forEach { point ->
+                points.put(JSONObject().put("x", point.x.toDouble()).put("y", point.y.toDouble()))
+            }
             array.put(
                 JSONObject()
                     .put("id", comment.id)
@@ -309,6 +389,14 @@ class WorkflowCommentRepository(
                     .put("x", comment.x.toDouble())
                     .put("y", comment.y.toDouble())
                     .put("width", comment.width.toDouble())
+                    .put("height", comment.height.toDouble())
+                    .put("endX", comment.endX.toDouble())
+                    .put("endY", comment.endY.toDouble())
+                    .put("markupType", comment.markupType.name)
+                    .put("colorArgb", comment.colorArgb.toLong())
+                    .put("strokeWidth", comment.strokeWidth.toDouble())
+                    .put("opacity", comment.opacity.toDouble())
+                    .put("points", points)
                     .put("authorName", comment.authorName)
                     .put("authorEmail", comment.authorEmail)
                     .put("published", comment.published)
@@ -318,7 +406,7 @@ class WorkflowCommentRepository(
             )
         }
         return JSONObject()
-            .put("version", 3)
+            .put("version", 4)
             .put("updatedAt", System.currentTimeMillis())
             .put("comments", array)
             .toString(2)
@@ -328,5 +416,6 @@ class WorkflowCommentRepository(
         private const val PUBLISHED_FILE = "comentarios-publicados.json"
         private const val PRIVATE_DRAFTS_FILE = "comentarios-borradores.json"
         private const val LEGACY_FILE = "comentarios-planos.json"
+        private const val MAX_POINTS = 3000
     }
 }
