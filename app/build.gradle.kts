@@ -14,8 +14,8 @@ android {
     applicationId = "cl.skmindustrial.gestionplanos"
     minSdk = 24
     targetSdk = 36
-    versionCode = 8
-    versionName = "8.0.0"
+    versionCode = 9
+    versionName = "9.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
