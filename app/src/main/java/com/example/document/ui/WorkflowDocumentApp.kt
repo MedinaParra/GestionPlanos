@@ -9,8 +9,9 @@ import com.example.document.model.UserRole
 import com.example.document.model.WorkflowEvent
 
 /**
- * Punto de entrada conservado para no modificar la lógica de Activity/ViewModel.
- * La navegación corporativa v7 se mantiene y solo se reemplaza el motor del visor PDF.
+ * Mantiene la interfaz corporativa y reemplaza por completo la pantalla principal
+ * mientras existe un PDF abierto. Así el visor no se superpone sobre el menú ni
+ * deja visibles barras de la aplicación por debajo.
  */
 @Composable
 fun WorkflowDocumentApp(
@@ -36,8 +37,34 @@ fun WorkflowDocumentApp(
     onUpdateComment: (PlanComment) -> Unit,
     onDeleteComment: (PlanComment) -> Unit
 ) {
+    val document = state.previewDocument
+    val file = state.previewFile
+    val session = state.session
+
+    if (document != null && file != null && session != null) {
+        CorporatePdfViewerV4(
+            file = file,
+            document = document,
+            comments = state.previewComments,
+            timeline = timeline,
+            currentEmail = session.email,
+            isAdmin = session.isAdmin,
+            canComment = state.configuration.canEdit && session.profile.active,
+            onClose = onClosePdf,
+            onApprove = { onPrepareSignature(document) },
+            onRequestChanges = { reason -> onRequestChanges(document, reason) },
+            onAddComment = { page, text, x, y, width ->
+                onAddComment(document, page, text, x, y, width)
+            },
+            onPublishComment = onPublishComment,
+            onUpdateComment = onUpdateComment,
+            onDeleteComment = onDeleteComment
+        )
+        return
+    }
+
     CorporateDocumentApp(
-        state = state.copy(previewDocument = null, previewFile = null),
+        state = state,
         timeline = timeline,
         onConnectDrive = onConnectDrive,
         onRefresh = onRefresh,
@@ -59,28 +86,4 @@ fun WorkflowDocumentApp(
         onUpdateComment = onUpdateComment,
         onDeleteComment = onDeleteComment
     )
-
-    val document = state.previewDocument
-    val file = state.previewFile
-    val session = state.session
-    if (document != null && file != null && session != null) {
-        CorporatePdfViewerV3(
-            file = file,
-            document = document,
-            comments = state.previewComments,
-            timeline = timeline,
-            currentEmail = session.email,
-            isAdmin = session.isAdmin,
-            canComment = state.configuration.canEdit && session.profile.active,
-            onClose = onClosePdf,
-            onApprove = { onPrepareSignature(document) },
-            onRequestChanges = { reason -> onRequestChanges(document, reason) },
-            onAddComment = { page, text, x, y, width ->
-                onAddComment(document, page, text, x, y, width)
-            },
-            onPublishComment = onPublishComment,
-            onUpdateComment = onUpdateComment,
-            onDeleteComment = onDeleteComment
-        )
-    }
 }
