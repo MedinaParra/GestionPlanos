@@ -64,7 +64,7 @@ fun WorkflowDocumentApp(
     val file = state.previewFile
     val session = state.session
     if (document != null && file != null && session != null) {
-        CorporatePdfViewerV2(
+        CorporatePdfViewerV3(
             file = file,
             document = document,
             comments = state.previewComments,
