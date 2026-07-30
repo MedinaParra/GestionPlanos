@@ -23,6 +23,7 @@ import org.json.JSONObject
 import java.io.File
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -32,6 +33,8 @@ internal enum class AdaptiveViewerTool(val label: String, val markupType: Review
     HAND("Navegar", null),
     SELECT("Seleccionar", null),
     TEXT("Texto", ReviewMarkupType.TEXT),
+    SYMBOL("Símbolo", ReviewMarkupType.SYMBOL),
+    DIMENSION("Cota", ReviewMarkupType.DIMENSION),
     FREEHAND("Lápiz", ReviewMarkupType.FREEHAND),
     HIGHLIGHT("Resaltador", ReviewMarkupType.HIGHLIGHT),
     LINE("Línea", ReviewMarkupType.LINE),
@@ -54,6 +57,8 @@ internal data class AdaptiveMarkup(
     val endY: Float,
     val width: Float,
     val height: Float,
+    val labelX: Float,
+    val labelY: Float,
     val colorArgb: Int,
     val strokeWidth: Float,
     val opacity: Float,
@@ -64,7 +69,11 @@ internal data class AdaptiveDrawingPreview(
     val type: ReviewMarkupType,
     val start: ReviewPoint,
     val end: ReviewPoint,
-    val points: List<ReviewPoint> = emptyList()
+    val points: List<ReviewPoint> = emptyList(),
+    val label: ReviewPoint = ReviewPoint(
+        x = (start.x + end.x) / 2f,
+        y = ((start.y + end.y) / 2f - 0.035f).coerceIn(0f, 1f)
+    )
 )
 
 internal fun AdaptiveMarkup.toAdaptiveInput(): ReviewMarkupInput = ReviewMarkupInput(
@@ -77,6 +86,8 @@ internal fun AdaptiveMarkup.toAdaptiveInput(): ReviewMarkupInput = ReviewMarkupI
     endY = endY,
     width = width,
     height = height,
+    labelX = labelX,
+    labelY = labelY,
     colorArgb = colorArgb,
     strokeWidth = strokeWidth,
     opacity = opacity,
@@ -95,6 +106,8 @@ internal fun encodeAdaptiveMarkup(input: ReviewMarkupInput, clientId: String): S
         .put("endX", input.endX.toDouble())
         .put("endY", input.endY.toDouble())
         .put("height", input.height.toDouble())
+        .put("labelX", input.labelX.toDouble())
+        .put("labelY", input.labelY.toDouble())
         .put("colorArgb", input.colorArgb.toLong())
         .put("strokeWidth", input.strokeWidth.toDouble())
         .put("opacity", input.opacity.toDouble())
@@ -103,6 +116,8 @@ internal fun encodeAdaptiveMarkup(input: ReviewMarkupInput, clientId: String): S
 }
 
 internal fun decodeAdaptiveMarkup(comment: PlanComment): AdaptiveMarkup {
+    val fallbackLabelX = ((comment.x + comment.endX) / 2f).coerceIn(0f, 1f)
+    val fallbackLabelY = (((comment.y + comment.endY) / 2f) - 0.035f).coerceIn(0f, 1f)
     if (!comment.text.startsWith(ADAPTIVE_MARKUP_PREFIX)) {
         return AdaptiveMarkup(
             source = comment,
@@ -115,6 +130,8 @@ internal fun decodeAdaptiveMarkup(comment: PlanComment): AdaptiveMarkup {
             endY = comment.endY,
             width = comment.width,
             height = comment.height,
+            labelX = fallbackLabelX,
+            labelY = fallbackLabelY,
             colorArgb = comment.colorArgb,
             strokeWidth = comment.strokeWidth,
             opacity = comment.opacity,
@@ -143,6 +160,8 @@ internal fun decodeAdaptiveMarkup(comment: PlanComment): AdaptiveMarkup {
             endY = json.optDouble("endY", comment.endY.toDouble()).toFloat(),
             width = comment.width,
             height = json.optDouble("height", comment.height.toDouble()).toFloat(),
+            labelX = json.optDouble("labelX", fallbackLabelX.toDouble()).toFloat(),
+            labelY = json.optDouble("labelY", fallbackLabelY.toDouble()).toFloat(),
             colorArgb = json.optLong("colorArgb", comment.colorArgb.toLong()).toInt(),
             strokeWidth = json.optDouble("strokeWidth", comment.strokeWidth.toDouble()).toFloat(),
             opacity = json.optDouble("opacity", comment.opacity.toDouble()).toFloat(),
@@ -150,26 +169,28 @@ internal fun decodeAdaptiveMarkup(comment: PlanComment): AdaptiveMarkup {
         )
     }.getOrElse {
         AdaptiveMarkup(
-            comment,
-            comment.id,
-            comment.markupType,
-            comment.text,
-            comment.x,
-            comment.y,
-            comment.endX,
-            comment.endY,
-            comment.width,
-            comment.height,
-            comment.colorArgb,
-            comment.strokeWidth,
-            comment.opacity,
-            comment.points
+            source = comment,
+            clientId = comment.id,
+            type = comment.markupType,
+            text = comment.text,
+            x = comment.x,
+            y = comment.y,
+            endX = comment.endX,
+            endY = comment.endY,
+            width = comment.width,
+            height = comment.height,
+            labelX = fallbackLabelX,
+            labelY = fallbackLabelY,
+            colorArgb = comment.colorArgb,
+            strokeWidth = comment.strokeWidth,
+            opacity = comment.opacity,
+            points = comment.points
         )
     }
 }
 
 internal fun DrawScope.drawAdaptiveMarkup(markup: AdaptiveMarkup) {
-    if (markup.type == ReviewMarkupType.TEXT) return
+    if (markup.type == ReviewMarkupType.TEXT || markup.type == ReviewMarkupType.SYMBOL) return
     val color = Color(markup.colorArgb).copy(alpha = markup.opacity.coerceIn(0.08f, 1f))
     val stroke = (markup.strokeWidth * size.minDimension).coerceAtLeast(2f)
     val start = Offset(markup.x * size.width, markup.y * size.height)
@@ -201,7 +222,8 @@ internal fun DrawScope.drawAdaptiveMarkup(markup: AdaptiveMarkup) {
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke * 3f),
             style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(stroke * 2f, stroke * 1.4f)))
         )
-        ReviewMarkupType.TEXT -> Unit
+        ReviewMarkupType.DIMENSION -> drawAdaptiveDimension(markup, color, stroke)
+        ReviewMarkupType.TEXT, ReviewMarkupType.SYMBOL -> Unit
     }
 }
 
@@ -215,13 +237,15 @@ internal fun DrawScope.drawAdaptivePreview(
         source = PlanComment(),
         clientId = "preview",
         type = preview.type,
-        text = "",
+        text = if (preview.type == ReviewMarkupType.DIMENSION) "COTA" else "",
         x = preview.start.x,
         y = preview.start.y,
         endX = preview.end.x,
         endY = preview.end.y,
         width = kotlin.math.abs(preview.end.x - preview.start.x),
         height = kotlin.math.abs(preview.end.y - preview.start.y),
+        labelX = preview.label.x,
+        labelY = preview.label.y,
         colorArgb = color.copy(alpha = 1f).toArgb(),
         strokeWidth = strokeWidth,
         opacity = opacity,
@@ -230,21 +254,47 @@ internal fun DrawScope.drawAdaptivePreview(
     drawAdaptiveMarkup(temp)
 }
 
+private fun DrawScope.drawAdaptiveDimension(markup: AdaptiveMarkup, color: Color, stroke: Float) {
+    val a = Offset(markup.x * size.width, markup.y * size.height)
+    val b = Offset(markup.endX * size.width, markup.endY * size.height)
+    val label = Offset(markup.labelX * size.width, markup.labelY * size.height)
+    val dx = b.x - a.x
+    val dy = b.y - a.y
+    val length = hypot(dx, dy).coerceAtLeast(1f)
+    val ux = dx / length
+    val uy = dy / length
+    val nx = -uy
+    val ny = ux
+    val midpoint = Offset((a.x + b.x) / 2f, (a.y + b.y) / 2f)
+    val offset = (label.x - midpoint.x) * nx + (label.y - midpoint.y) * ny
+    val dimA = Offset(a.x + nx * offset, a.y + ny * offset)
+    val dimB = Offset(b.x + nx * offset, b.y + ny * offset)
+
+    drawLine(color, a, dimA, stroke * 0.72f, cap = StrokeCap.Square)
+    drawLine(color, b, dimB, stroke * 0.72f, cap = StrokeCap.Square)
+    drawLine(color, dimA, dimB, stroke, cap = StrokeCap.Square)
+    drawAdaptiveArrowHead(color, dimA, atan2(dimB.y - dimA.y, dimB.x - dimA.x), stroke)
+    drawAdaptiveArrowHead(color, dimB, atan2(dimA.y - dimB.y, dimA.x - dimB.x), stroke)
+}
+
 private fun DrawScope.drawAdaptiveArrow(color: Color, start: Offset, end: Offset, stroke: Float) {
     drawLine(color, start, end, stroke, cap = StrokeCap.Round)
-    val angle = atan2(end.y - start.y, end.x - start.x)
+    drawAdaptiveArrowHead(color, end, atan2(start.y - end.y, start.x - end.x), stroke)
+}
+
+private fun DrawScope.drawAdaptiveArrowHead(color: Color, tip: Offset, direction: Float, stroke: Float) {
     val length = (stroke * 6f).coerceAtLeast(18f)
-    val spread = 0.55f
+    val spread = 0.50f
     val first = Offset(
-        end.x - length * cos(angle - spread),
-        end.y - length * sin(angle - spread)
+        tip.x + length * cos(direction - spread),
+        tip.y + length * sin(direction - spread)
     )
     val second = Offset(
-        end.x - length * cos(angle + spread),
-        end.y - length * sin(angle + spread)
+        tip.x + length * cos(direction + spread),
+        tip.y + length * sin(direction + spread)
     )
-    drawLine(color, end, first, stroke, cap = StrokeCap.Round)
-    drawLine(color, end, second, stroke, cap = StrokeCap.Round)
+    drawLine(color, tip, first, stroke, cap = StrokeCap.Round)
+    drawLine(color, tip, second, stroke, cap = StrokeCap.Round)
 }
 
 private fun Color.toArgb(): Int = AndroidColor.argb(
@@ -258,11 +308,13 @@ internal fun adaptiveHitTest(markups: List<AdaptiveMarkup>, point: ReviewPoint):
     return markups.asReversed().firstOrNull { markup ->
         when (markup.type) {
             ReviewMarkupType.FREEHAND, ReviewMarkupType.HIGHLIGHT -> markup.points.any { adaptiveDistance(it, point) < 0.025f }
-            ReviewMarkupType.LINE, ReviewMarkupType.ARROW -> adaptivePointSegmentDistance(
-                point,
-                ReviewPoint(markup.x, markup.y),
-                ReviewPoint(markup.endX, markup.endY)
-            ) < 0.025f
+            ReviewMarkupType.LINE, ReviewMarkupType.ARROW, ReviewMarkupType.DIMENSION -> {
+                adaptivePointSegmentDistance(
+                    point,
+                    ReviewPoint(markup.x, markup.y),
+                    ReviewPoint(markup.endX, markup.endY)
+                ) < 0.035f || adaptiveDistance(point, ReviewPoint(markup.labelX, markup.labelY)) < 0.06f
+            }
             else -> {
                 val left = minOf(markup.x, markup.endX)
                 val top = minOf(markup.y, markup.endY)
@@ -273,6 +325,8 @@ internal fun adaptiveHitTest(markups: List<AdaptiveMarkup>, point: ReviewPoint):
         }
     }?.source
 }
+
+internal fun adaptivePointDistance(a: ReviewPoint, b: ReviewPoint): Float = adaptiveDistance(a, b)
 
 private fun adaptiveDistance(a: ReviewPoint, b: ReviewPoint): Float {
     val dx = a.x - b.x
@@ -293,8 +347,8 @@ internal suspend fun renderAdaptivePage(file: File, index: Int): Pair<Bitmap, In
         PdfRenderer(descriptor).use { renderer ->
             val safeIndex = index.coerceIn(0, renderer.pageCount - 1)
             renderer.openPage(safeIndex).use { page ->
-                val maxSide = 3200f
-                val renderScale = min(2.7f, maxSide / maxOf(page.width, page.height).toFloat())
+                val maxSide = 3600f
+                val renderScale = min(3.0f, maxSide / maxOf(page.width, page.height).toFloat())
                 val bitmap = Bitmap.createBitmap(
                     (page.width * renderScale).roundToInt().coerceAtLeast(1),
                     (page.height * renderScale).roundToInt().coerceAtLeast(1),
@@ -308,4 +362,4 @@ internal suspend fun renderAdaptivePage(file: File, index: Int): Pair<Bitmap, In
     }
 }
 
-private const val ADAPTIVE_MARKUP_PREFIX = "@SKM_MARKUP_V2@"
+private const val ADAPTIVE_MARKUP_PREFIX = "@SKM_MARKUP_V3@"
