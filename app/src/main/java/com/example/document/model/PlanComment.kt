@@ -2,6 +2,8 @@ package com.example.document.model
 
 enum class ReviewMarkupType {
     TEXT,
+    SYMBOL,
+    DIMENSION,
     FREEHAND,
     HIGHLIGHT,
     LINE,
@@ -26,6 +28,8 @@ data class ReviewMarkupInput(
     val endY: Float = 0.20f,
     val width: Float = 0.22f,
     val height: Float = 0.10f,
+    val labelX: Float = 0.19f,
+    val labelY: Float = 0.08f,
     val colorArgb: Int = 0xFFFF6A00.toInt(),
     val strokeWidth: Float = 0.004f,
     val opacity: Float = 1f,
@@ -66,7 +70,9 @@ data class PlanComment(
 
     val displayLabel: String
         get() = when (markupType) {
-            ReviewMarkupType.TEXT -> "Observación"
+            ReviewMarkupType.TEXT -> "Cuadro de texto"
+            ReviewMarkupType.SYMBOL -> "Símbolo"
+            ReviewMarkupType.DIMENSION -> "Cota"
             ReviewMarkupType.FREEHAND -> "Trazo libre"
             ReviewMarkupType.HIGHLIGHT -> "Resaltado"
             ReviewMarkupType.LINE -> "Línea"
