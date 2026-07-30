@@ -88,28 +88,70 @@ class PdfStampService(context: Context) {
     fun addAptoParaFabricacion(pdfBytes: ByteArray): ByteArray = edit(pdfBytes) { document, page ->
         val width = page.mediaBox.width
         val height = page.mediaBox.height
-        val stampWidth = width * 0.42f
-        val stampHeight = stampWidth * 0.20f
-        val x = (width - stampWidth) / 2f
-        val y = height * 0.48f
+        val stampWidth = width * 0.245f
+        val stampHeight = stampWidth * 0.31f
+        val x = (width - stampWidth - width * 0.055f).coerceAtLeast(width * 0.50f)
+        val y = (height * 0.17f).coerceAtLeast(18f)
+        val radius = stampHeight / 2f
+
         PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true).use { stream ->
             val graphicsState = PDExtendedGraphicsState().apply {
-                nonStrokingAlphaConstant = 0.78f
-                strokingAlphaConstant = 0.85f
+                nonStrokingAlphaConstant = 0.96f
+                strokingAlphaConstant = 0.96f
             }
             stream.setGraphicsStateParameters(graphicsState)
-            stream.setStrokingColor(0, 80, 185)
-            stream.setNonStrokingColor(235, 245, 255)
-            stream.setLineWidth(3f)
-            stream.addRect(x, y, stampWidth, stampHeight)
+            stream.setStrokingColor(0, 118, 220)
+            stream.setNonStrokingColor(255, 255, 255)
+            stream.setLineWidth((stampHeight * 0.025f).coerceAtLeast(1.3f))
+            addRoundedRect(stream, x, y, stampWidth, stampHeight, radius)
             stream.fillAndStroke()
-            stream.setNonStrokingColor(0, 65, 170)
-            stream.beginText()
-            stream.setFont(PDType1Font.HELVETICA_BOLD, stampWidth * 0.073f)
-            stream.newLineAtOffset(x + stampWidth * 0.055f, y + stampHeight * 0.42f)
-            stream.showText("APTO PARA FABRICACION")
-            stream.endText()
+
+            stream.setNonStrokingColor(0, 118, 220)
+            val font = PDType1Font.HELVETICA_BOLD
+            val fontSize = stampHeight * 0.245f
+            drawCentered(stream, font, "APTO PARA", x, y + stampHeight * 0.57f, stampWidth, fontSize)
+            drawCentered(stream, font, "FABRICACIÓN", x, y + stampHeight * 0.24f, stampWidth, fontSize)
         }
+    }
+
+    private fun addRoundedRect(
+        stream: PDPageContentStream,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        radius: Float
+    ) {
+        val k = 0.5522848f
+        val r = radius.coerceAtMost(min(width, height) / 2f)
+        stream.moveTo(x + r, y)
+        stream.lineTo(x + width - r, y)
+        stream.curveTo(x + width - r + r * k, y, x + width, y + r - r * k, x + width, y + r)
+        stream.lineTo(x + width, y + height - r)
+        stream.curveTo(x + width, y + height - r + r * k, x + width - r + r * k, y + height, x + width - r, y + height)
+        stream.lineTo(x + r, y + height)
+        stream.curveTo(x + r - r * k, y + height, x, y + height - r + r * k, x, y + height - r)
+        stream.lineTo(x, y + r)
+        stream.curveTo(x, y + r - r * k, x + r - r * k, y, x + r, y)
+        stream.closePath()
+    }
+
+    private fun drawCentered(
+        stream: PDPageContentStream,
+        font: PDType1Font,
+        text: String,
+        x: Float,
+        baselineY: Float,
+        width: Float,
+        fontSize: Float
+    ) {
+        val safeText = safe(text)
+        val textWidth = font.getStringWidth(safeText) / 1000f * fontSize
+        stream.beginText()
+        stream.setFont(font, fontSize)
+        stream.newLineAtOffset(x + (width - textWidth) / 2f, baselineY)
+        stream.showText(safeText)
+        stream.endText()
     }
 
     private fun edit(pdfBytes: ByteArray, action: (PDDocument, PDPage) -> Unit): ByteArray {
@@ -136,7 +178,7 @@ class PdfStampService(context: Context) {
         stream.beginText()
         stream.setFont(if (bold) PDType1Font.HELVETICA_BOLD else PDType1Font.HELVETICA, size)
         stream.newLineAtOffset(x, y)
-        stream.showText(text.take(55))
+        stream.showText(safe(text).take(55))
         stream.endText()
     }
 
