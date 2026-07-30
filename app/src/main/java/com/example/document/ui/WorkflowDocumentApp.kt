@@ -10,7 +10,7 @@ import com.example.document.model.WorkflowEvent
 
 /**
  * Punto de entrada conservado para no modificar la lógica de Activity/ViewModel.
- * Toda la experiencia visual se delega a la interfaz corporativa adaptable.
+ * La navegación corporativa v7 se mantiene y solo se reemplaza el motor del visor PDF.
  */
 @Composable
 fun WorkflowDocumentApp(
@@ -37,7 +37,7 @@ fun WorkflowDocumentApp(
     onDeleteComment: (PlanComment) -> Unit
 ) {
     CorporateDocumentApp(
-        state = state,
+        state = state.copy(previewDocument = null, previewFile = null),
         timeline = timeline,
         onConnectDrive = onConnectDrive,
         onRefresh = onRefresh,
@@ -59,4 +59,28 @@ fun WorkflowDocumentApp(
         onUpdateComment = onUpdateComment,
         onDeleteComment = onDeleteComment
     )
+
+    val document = state.previewDocument
+    val file = state.previewFile
+    val session = state.session
+    if (document != null && file != null && session != null) {
+        CorporatePdfViewerV2(
+            file = file,
+            document = document,
+            comments = state.previewComments,
+            timeline = timeline,
+            currentEmail = session.email,
+            isAdmin = session.isAdmin,
+            canComment = state.configuration.canEdit && session.profile.active,
+            onClose = onClosePdf,
+            onApprove = { onPrepareSignature(document) },
+            onRequestChanges = { reason -> onRequestChanges(document, reason) },
+            onAddComment = { page, text, x, y, width ->
+                onAddComment(document, page, text, x, y, width)
+            },
+            onPublishComment = onPublishComment,
+            onUpdateComment = onUpdateComment,
+            onDeleteComment = onDeleteComment
+        )
+    }
 }
