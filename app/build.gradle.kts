@@ -14,8 +14,8 @@ android {
     applicationId = "cl.skmindustrial.gestionplanos"
     minSdk = 24
     targetSdk = 36
-    versionCode = 7
-    versionName = "7.0.0"
+    versionCode = 8
+    versionName = "8.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -60,6 +60,12 @@ android {
   }
 
   testOptions { unitTests { isIncludeAndroidResources = true } }
+}
+
+kotlin {
+  compilerOptions {
+    optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
+  }
 }
 
 secrets {
