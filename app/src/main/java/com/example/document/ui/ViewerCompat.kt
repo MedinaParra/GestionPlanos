@@ -1,13 +1,10 @@
 package com.example.document.ui
 
+import android.content.res.Resources
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap as composeAsImageBitmap
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 
 /** Compatibilidad aislada para mantener el visor independiente del resto de la interfaz. */
 internal fun Bitmap.asImageBitmap(): ImageBitmap = this.composeAsImageBitmap()
@@ -18,17 +15,14 @@ internal data class ViewerLayoutConstraints(
 )
 
 /**
- * BoxScope no expone sus restricciones. El visor usa estas métricas únicamente para
- * posicionar tarjetas de texto; el lienzo gráfico usa coordenadas normalizadas reales.
+ * Métricas de respaldo usadas solo por las tarjetas de texto. Las formas y trazos
+ * permanecen vinculados a coordenadas normalizadas reales del PDF.
  */
 internal val BoxScope.constraints: ViewerLayoutConstraints
-    @Composable get() {
-        val configuration = LocalConfiguration.current
-        val density = LocalDensity.current
-        return with(density) {
-            ViewerLayoutConstraints(
-                maxWidth = configuration.screenWidthDp.dp.roundToPx(),
-                maxHeight = configuration.screenHeightDp.dp.roundToPx()
-            )
-        }
+    get() {
+        val metrics = Resources.getSystem().displayMetrics
+        return ViewerLayoutConstraints(
+            maxWidth = metrics.widthPixels.coerceAtLeast(1),
+            maxHeight = metrics.heightPixels.coerceAtLeast(1)
+        )
     }
