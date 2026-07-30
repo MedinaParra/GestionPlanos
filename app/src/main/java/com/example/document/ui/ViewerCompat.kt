@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap as composeAsImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 
 /** Compatibilidad aislada para mantener el visor independiente del resto de la interfaz. */
 internal fun Bitmap.asImageBitmap(): ImageBitmap = this.composeAsImageBitmap()
