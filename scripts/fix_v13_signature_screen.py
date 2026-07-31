@@ -13,11 +13,8 @@ def replace_once(old: str, new: str, label: str) -> None:
     text = text.replace(old, new, 1)
 
 
-replace_once(
-    "import androidx.compose.foundation.layout.width\n",
-    "import androidx.compose.foundation.layout.width\nimport androidx.compose.foundation.layout.weight\n",
-    "Import de weight",
-)
+# Weight se resuelve como miembro de RowScope/ColumnScope; no debe importarse.
+text = text.replace("import androidx.compose.foundation.layout.weight\n", "")
 
 replace_once(
     """                    val maxX = (1f - width).coerceAtLeast(0f)
