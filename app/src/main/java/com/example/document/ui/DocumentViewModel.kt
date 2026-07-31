@@ -40,6 +40,7 @@ data class DocumentUiState(
     val previewComments: List<PlanComment> = emptyList(),
     val signingDocument: DocumentRecord? = null,
     val signingFile: File? = null,
+    val approvalCelebrationDocument: DocumentRecord? = null,
     val profilePhotoFile: File? = null,
     val profileSignatureFile: File? = null
 )

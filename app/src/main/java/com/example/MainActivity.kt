@@ -96,6 +96,7 @@ class MainActivity : FragmentActivity() {
                     onClosePdf = viewModel::closePdf,
                     onCancelSignaturePlacement = viewModel::cancelSignaturePlacement,
                     onClearFeedback = viewModel::clearFeedback,
+                    onApprovalCelebrationFinished = viewModel::clearApprovalCelebration,
                     onAddComment = viewModel::addComment,
                     onPublishComment = viewModel::publishComment,
                     onUpdateComment = viewModel::updateComment,

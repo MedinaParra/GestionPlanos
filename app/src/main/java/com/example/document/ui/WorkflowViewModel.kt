@@ -183,7 +183,17 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 document.currentPdfFileId.ifBlank { document.driveFileId },
                 target
             )
-            _uiState.update { it.copy(signingDocument = document, signingFile = target) }
+            _uiState.update {
+                it.copy(
+                    signingDocument = document,
+                    signingFile = target,
+                    previewDocument = null,
+                    previewFile = null,
+                    previewComments = emptyList(),
+                    approvalCelebrationDocument = null
+                )
+            }
+            _timeline.value = emptyList()
         }
     }
 
@@ -205,18 +215,31 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                 placement = placement,
                 signatureMethod = signatureMethod
             )
-            _uiState.update { it.copy(signingDocument = null, signingFile = null) }
-            val updated = workspace.documents.firstOrNull { it.id == document.id }
+            val updated = workspace.documents.firstOrNull { it.id == document.id } ?: document
+            _uiState.update {
+                it.copy(
+                    signingDocument = null,
+                    signingFile = null,
+                    previewDocument = null,
+                    previewFile = null,
+                    previewComments = emptyList(),
+                    approvalCelebrationDocument = updated
+                )
+            }
+            _timeline.value = emptyList()
             applyWorkspace(
                 workspace,
-                if (updated?.completed == true) {
+                if (updated.completed) {
                     "Revisión finalizada: PDF APTO PARA FABRICACIÓN creado."
                 } else {
                     "Aprobación registrada. El turno pasó al siguiente revisor."
                 }
             )
-            reloadPreviewData()
         }
+    }
+
+    fun clearApprovalCelebration() {
+        _uiState.update { it.copy(approvalCelebrationDocument = null) }
     }
 
     fun requestChanges(document: DocumentRecord, reason: String) {

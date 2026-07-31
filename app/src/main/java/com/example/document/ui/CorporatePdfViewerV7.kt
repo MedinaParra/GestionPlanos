@@ -676,7 +676,7 @@ fun CorporatePdfViewerV7(
                 modifier = Modifier.align(if (landscape) Alignment.CenterEnd else Alignment.BottomCenter),
                 canApprove = canApprove && !celebrating,
                 canRequestChanges = document.status == "EN_REVISIÓN" && !celebrating,
-                onApprove = { panel = V7Panel.NONE; celebrating = true },
+                onApprove = { panel = V7Panel.NONE; onApprove() },
                 onRequestChanges = { panel = V7Panel.NONE; requestChangesOpen = true },
                 onDismiss = { panel = V7Panel.NONE }
             )
@@ -1312,7 +1312,7 @@ private fun V7ActionsPanel(
                 Spacer(Modifier.width(7.dp))
                 Text("Solicitar cambios")
             }
-            Text("La animación confirma la acción; luego continúa el flujo de firma habitual.", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.padding(top = 9.dp))
+            Text("Primero ubica tu firma y confirma con biometría. La celebración aparece solo después de guardar la aprobación.", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.padding(top = 9.dp))
         }
     }
 }

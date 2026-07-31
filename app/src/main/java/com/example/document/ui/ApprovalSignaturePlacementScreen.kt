@@ -195,16 +195,17 @@ fun ApprovalSignaturePlacementScreen(
                     val scaleFactor = (width / 0.30f).coerceIn(0.48f, 1.50f)
                     val maxX = (1f - width).coerceAtLeast(0f)
                     val maxY = (1f - stampHeightPx / pageHeightPx.coerceAtLeast(1f)).coerceAtLeast(0f)
-                    x = x.coerceIn(0f, maxX)
-                    y = y.coerceIn(0f, maxY)
+                    val safeX = x.coerceIn(0f, maxX)
+                    val safeY = y.coerceIn(0f, maxY)
 
                     Surface(
                         modifier = Modifier
+                            .align(Alignment.TopStart)
                             .width(stampWidthDp)
                             .offset {
                                 IntOffset(
-                                    (pageLeftPx + x * pageWidthPx).roundToInt(),
-                                    (pageTopPx + y * pageHeightPx).roundToInt()
+                                    (pageLeftPx + safeX * pageWidthPx).roundToInt(),
+                                    (pageTopPx + safeY * pageHeightPx).roundToInt()
                                 )
                             }
                             .pointerInput(container, width, busy) {

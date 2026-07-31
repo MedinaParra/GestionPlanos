@@ -57,6 +57,7 @@ class PdfStampService(context: Context) {
         val pageHeight = page.mediaBox.height
         val blockWidth = (pageWidth * placement.width.coerceIn(0.18f, 0.46f))
         val blockHeight = blockWidth * 0.48f
+        val stampScale = (placement.width.coerceIn(0.18f, 0.46f) / 0.30f).coerceIn(0.60f, 1.55f)
         val x = (pageWidth * placement.x.coerceIn(0.01f, 0.98f)).coerceIn(4f, pageWidth - blockWidth - 4f)
         val topY = pageHeight * (1f - placement.y.coerceIn(0.02f, 0.95f))
         val y = (topY - blockHeight).coerceIn(4f, pageHeight - blockHeight - 4f)
@@ -73,15 +74,21 @@ class PdfStampService(context: Context) {
 
             val imageWidth = blockWidth * 0.42f
             val imageHeight = blockHeight * 0.42f
-            stream.drawImage(image, x + 6f, y + blockHeight - imageHeight - 7f, imageWidth, imageHeight)
+            stream.drawImage(
+                image,
+                x + 6f * stampScale,
+                y + blockHeight - imageHeight - 7f * stampScale,
+                imageWidth,
+                imageHeight
+            )
 
             stream.setNonStrokingColor(20, 55, 105)
-            drawLine(stream, "FIRMADO / REVISADO", x + blockWidth * 0.46f, y + blockHeight - 15f, 8.5f, true)
-            drawLine(stream, safe(profile.displayName), x + blockWidth * 0.46f, y + blockHeight - 29f, 7.2f, true)
-            drawLine(stream, safe(profile.position), x + blockWidth * 0.46f, y + blockHeight - 41f, 6.5f, false)
-            drawLine(stream, "RUT: ${safe(profile.rut)}", x + 6f, y + 24f, 6.5f, false)
-            drawLine(stream, "Fecha: $date  Hora: $time", x + 6f, y + 12f, 6.5f, false)
-            drawLine(stream, "SKM INDUSTRIAL", x + blockWidth * 0.62f, y + 4f, 6.2f, true)
+            drawLine(stream, "FIRMADO / REVISADO", x + blockWidth * 0.46f, y + blockHeight - 15f * stampScale, 8.5f * stampScale, true)
+            drawLine(stream, safe(profile.displayName), x + blockWidth * 0.46f, y + blockHeight - 29f * stampScale, 7.2f * stampScale, true)
+            drawLine(stream, safe(profile.position), x + blockWidth * 0.46f, y + blockHeight - 41f * stampScale, 6.5f * stampScale, false)
+            drawLine(stream, "RUT: ${safe(profile.rut)}", x + 6f * stampScale, y + 24f * stampScale, 6.5f * stampScale, false)
+            drawLine(stream, "Fecha: $date  Hora: $time", x + 6f * stampScale, y + 12f * stampScale, 6.5f * stampScale, false)
+            drawLine(stream, "SKM INDUSTRIAL", x + blockWidth * 0.62f, y + 4f * stampScale, 6.2f * stampScale, true)
         }
     }
 
