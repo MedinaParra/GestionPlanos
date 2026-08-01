@@ -1,0 +1,96 @@
+name: Validate Drive document management app
+
+on:
+  push:
+    branches:
+      - agent/document-management-v2
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Android unit tests and APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply v14 final-document, auth and notification fixes
+        shell: bash
+        run: |
+          if grep -q 'versionCode = 13' app/build.gradle.kts; then
+            python3 scripts/apply_v14_release.py
+          else
+            echo "Las correcciones v14 ya están aplicadas."
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 36 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.3.1
+
+      - name: Restore stable debug keystore
+        run: base64 --decode .github/ci-debug-keystore.b64 > app/ci-debug.keystore
+
+      - name: Verify stable certificate fingerprints
+        run: keytool -list -v -keystore app/ci-debug.keystore -storepass GestionPlanos2026 -alias gestionplanos
+
+      - name: Run unit tests
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Record APK verification data
+        run: |
+          sha256sum app/build/outputs/apk/debug/app-debug.apk | tee apk-sha256.txt
+          stat --printf='APK_SIZE=%s\n' app/build/outputs/apk/debug/app-debug.apk | tee apk-size.txt
+
+      - name: Commit v14 source corrections
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            app/build.gradle.kts \
+            app/src/main/AndroidManifest.xml \
+            app/src/main/res/drawable/ic_notification.xml \
+            app/src/main/java/com/example/MainActivity.kt \
+            app/src/main/java/com/example/document/data/DocumentRepository.kt \
+            app/src/main/java/com/example/document/data/WorkflowActionRepository.kt \
+            app/src/main/java/com/example/document/model/DocumentModels.kt \
+            app/src/main/java/com/example/document/notifications/ReviewReminderWorker.kt \
+            app/src/main/java/com/example/document/pdf/PdfStampService.kt \
+            app/src/main/java/com/example/document/ui/ApprovalSignaturePlacementScreen.kt \
+            app/src/main/java/com/example/document/ui/DocumentViewModel.kt \
+            app/src/main/java/com/example/document/ui/WorkflowViewModel.kt
+          git diff --cached --quiet || git commit -m "Corregir PDF final, renovación OAuth y notificaciones v14"
+          git push origin HEAD:agent/document-management-v2
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestion-planos-v14-notificaciones-apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            apk-sha256.txt
+            apk-size.txt
+          if-no-files-found: error
