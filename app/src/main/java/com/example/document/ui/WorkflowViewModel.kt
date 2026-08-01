@@ -40,18 +40,26 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
     val timeline: StateFlow<List<WorkflowEvent>> = _timeline.asStateFlow()
 
     private var driveAccessToken: String? = null
+    private var pendingAuthorizedAction: (suspend () -> Unit)? = null
 
     fun setDriveAccessToken(token: String) {
         driveAccessToken = token
-        launchBusy {
-            val workspace = documentRepository.connect(token)
-            applyWorkspace(workspace, "Google Drive conectado.")
-            loadProfileAssets()
+        val retry = pendingAuthorizedAction
+        pendingAuthorizedAction = null
+        launchBusy(allowAuthorizationRetry = false) {
+            if (retry != null) {
+                retry()
+            } else {
+                val workspace = documentRepository.connect(token)
+                applyWorkspace(workspace, "Google Drive conectado.")
+                loadProfileAssets()
+            }
         }
     }
 
     fun reportDriveAuthorizationError(error: Throwable) {
-        _uiState.update { it.copy(error = error.userMessage(), driveConnected = false, busy = false) }
+        pendingAuthorizedAction = null
+        _uiState.update { it.copy(error = error.userMessage(), busy = false) }
     }
 
     fun reportActionError(message: String) {
@@ -470,17 +478,48 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
             getApplication(),
             workspace.session.email,
             workspace.documents,
-            workspace.settings
+            workspace.settings,
+            workspace.configuration
         )
     }
 
-    private fun launchBusy(block: suspend () -> Unit) {
+    private fun launchBusy(
+        allowAuthorizationRetry: Boolean = true,
+        block: suspend () -> Unit
+    ) {
         viewModelScope.launch {
             _uiState.update { it.copy(busy = true, error = null) }
-            runCatching { block() }
-                .onFailure { error -> _uiState.update { it.copy(error = error.userMessage()) } }
-            _uiState.update { it.copy(busy = false) }
+            try {
+                block()
+            } catch (error: Throwable) {
+                if (allowAuthorizationRetry && error.isExpiredAuthorization()) {
+                    pendingAuthorizedAction = block
+                    driveAccessToken = null
+                    _uiState.update {
+                        it.copy(
+                            authorizationRequestId = System.currentTimeMillis(),
+                            message = "La sesión de Drive venció. Renovando autorización automáticamente…",
+                            error = null
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(error = error.userMessage()) }
+                }
+            } finally {
+                _uiState.update { it.copy(busy = false) }
+            }
         }
+    }
+
+    private fun Throwable.isExpiredAuthorization(): Boolean {
+        val details = generateSequence(this as Throwable?) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+            .lowercase()
+        return details.contains("401") ||
+            details.contains("unauthenticated") ||
+            details.contains("invalid credentials") ||
+            details.contains("authentication credentials")
     }
 
     private fun requireSession(): SessionUser =

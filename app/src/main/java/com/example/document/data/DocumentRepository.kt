@@ -378,12 +378,33 @@ class DocumentRepository(context: Context) {
             signedAt = now,
             method = signatureMethod,
             signatureFileId = user.profile.signatureFileId,
-            signedPdfFileId = signedCopy.id
+            signedPdfFileId = signedCopy.id,
+            placement = placement
         )
         val approvals = document.approvals + approval
         val isFinal = approvals.size >= document.requiredReviewerEmails.size
         val updatedDocument = if (isFinal) {
-            val finalBytes = pdfStamp.addAptoParaFabricacion(stamped)
+            // El PDF final se reconstruye desde el original limpio: así desaparece
+            // completamente la marca provisional NO APTO.
+            var cleanFinalBytes = binary.downloadBytes(accessToken, document.originalPdfFileId)
+            approvals.forEach { savedApproval ->
+                val savedSignature = binary.downloadBytes(accessToken, savedApproval.signatureFileId)
+                val savedProfile = UserProfile(
+                    email = savedApproval.email,
+                    displayName = savedApproval.name,
+                    rut = savedApproval.rut,
+                    position = savedApproval.position,
+                    signatureFileId = savedApproval.signatureFileId
+                )
+                cleanFinalBytes = pdfStamp.addApprovalSignature(
+                    cleanFinalBytes,
+                    savedSignature,
+                    savedProfile,
+                    savedApproval.placement,
+                    savedApproval.signedAt
+                )
+            }
+            val finalBytes = pdfStamp.addAptoParaFabricacion(cleanFinalBytes)
             val finalFile = binary.upload(
                 accessToken,
                 document.finalFolderId,
@@ -657,6 +678,9 @@ class DocumentRepository(context: Context) {
                             .put("method", approval.method)
                             .put("signatureFileId", approval.signatureFileId)
                             .put("signedPdfFileId", approval.signedPdfFileId)
+                            .put("placementX", approval.placement.x.toDouble())
+                            .put("placementY", approval.placement.y.toDouble())
+                            .put("placementWidth", approval.placement.width.toDouble())
                     )
                 }
             }
@@ -718,7 +742,12 @@ class DocumentRepository(context: Context) {
                         signedAt = item.optLong("signedAt"),
                         method = item.optString("method"),
                         signatureFileId = item.optString("signatureFileId"),
-                        signedPdfFileId = item.optString("signedPdfFileId")
+                        signedPdfFileId = item.optString("signedPdfFileId"),
+                        placement = SignaturePlacement(
+                            x = item.optDouble("placementX", 0.70).toFloat(),
+                            y = item.optDouble("placementY", 0.78).toFloat(),
+                            width = item.optDouble("placementWidth", 0.16).toFloat()
+                        )
                     )
                 )
             }

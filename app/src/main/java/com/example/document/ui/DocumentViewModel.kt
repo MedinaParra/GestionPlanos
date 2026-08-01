@@ -32,6 +32,7 @@ data class DocumentUiState(
     val users: List<UserProfile> = emptyList(),
     val settings: WorkflowSettings = WorkflowSettings(),
     val driveConnected: Boolean = false,
+    val authorizationRequestId: Long = 0L,
     val busy: Boolean = false,
     val error: String? = null,
     val message: String? = null,
@@ -364,7 +365,8 @@ class DocumentViewModel(application: Application) : AndroidViewModel(application
             getApplication(),
             workspace.session.email,
             workspace.documents,
-            workspace.settings
+            workspace.settings,
+            workspace.configuration
         )
     }
 

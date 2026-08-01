@@ -5,6 +5,7 @@ import com.example.document.model.ApprovalSignature
 import com.example.document.model.DocumentRecord
 import com.example.document.model.DriveConfiguration
 import com.example.document.model.SessionUser
+import com.example.document.model.SignaturePlacement
 import com.example.document.model.WorkflowEvent
 import com.example.document.model.WorkflowEventType
 import org.json.JSONArray
@@ -171,7 +172,12 @@ class WorkflowActionRepository(
                         signedAt = item.optLong("signedAt"),
                         method = item.optString("method"),
                         signatureFileId = item.optString("signatureFileId"),
-                        signedPdfFileId = item.optString("signedPdfFileId")
+                        signedPdfFileId = item.optString("signedPdfFileId"),
+                        placement = SignaturePlacement(
+                            x = item.optDouble("placementX", 0.70).toFloat(),
+                            y = item.optDouble("placementY", 0.78).toFloat(),
+                            width = item.optDouble("placementWidth", 0.16).toFloat()
+                        )
                     )
                 )
             }

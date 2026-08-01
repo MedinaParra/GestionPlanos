@@ -17,6 +17,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import com.example.document.model.DocumentRecord
 import com.example.document.model.SignaturePlacement
 import com.example.document.notifications.ReviewReminderWorker
@@ -78,6 +79,9 @@ class MainActivity : FragmentActivity() {
             MyApplicationTheme {
                 val state = viewModel.uiState.collectAsStateWithLifecycle().value
                 val timeline = viewModel.timeline.collectAsStateWithLifecycle().value
+                LaunchedEffect(state.authorizationRequestId) {
+                    if (state.authorizationRequestId > 0L) requestDriveAuthorization()
+                }
                 WorkflowDocumentApp(
                     state = state,
                     timeline = timeline,

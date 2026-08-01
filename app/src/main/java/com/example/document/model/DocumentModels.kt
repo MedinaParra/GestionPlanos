@@ -13,9 +13,9 @@ enum class UserRole {
 }
 
 data class SignaturePlacement(
-    val x: Float = 0.62f,
-    val y: Float = 0.73f,
-    val width: Float = 0.30f
+    val x: Float = 0.70f,
+    val y: Float = 0.78f,
+    val width: Float = 0.16f
 )
 
 data class UserProfile(
@@ -62,7 +62,8 @@ data class ApprovalSignature(
     val signedAt: Long = 0L,
     val method: String = "",
     val signatureFileId: String = "",
-    val signedPdfFileId: String = ""
+    val signedPdfFileId: String = "",
+    val placement: SignaturePlacement = SignaturePlacement()
 )
 
 data class DriveConfiguration(

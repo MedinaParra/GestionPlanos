@@ -92,7 +92,7 @@ fun ApprovalSignaturePlacementScreen(
     var container by remember { mutableStateOf(IntSize.Zero) }
     var x by rememberSaveable(document.id) { mutableFloatStateOf(profile.placement.x) }
     var y by rememberSaveable(document.id) { mutableFloatStateOf(profile.placement.y) }
-    var width by rememberSaveable(document.id) { mutableFloatStateOf(profile.placement.width.coerceIn(0.14f, 0.44f)) }
+    var width by rememberSaveable(document.id) { mutableFloatStateOf(profile.placement.width.coerceIn(0.07f, 0.32f)) }
     val density = LocalDensity.current
 
     LaunchedEffect(file) {
@@ -102,7 +102,7 @@ fun ApprovalSignaturePlacementScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF1F3F5)),
         topBar = {
-            Surface(shadowElevation = 5.dp, color = Color.White) {
+            Surface(shadowElevation = 0.dp, color = Color.White) {
                 Row(
                     Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -134,7 +134,7 @@ fun ApprovalSignaturePlacementScreen(
                     Slider(
                         value = width,
                         onValueChange = { width = it },
-                        valueRange = 0.14f..0.44f,
+                        valueRange = 0.07f..0.32f,
                         enabled = !busy
                     )
                     Button(
@@ -190,9 +190,9 @@ fun ApprovalSignaturePlacementScreen(
                     val pageLeftPx = (containerWidth - pageWidthPx) / 2f
                     val pageTopPx = (containerHeight - pageHeightPx) / 2f
                     val stampWidthPx = pageWidthPx * width
-                    val stampHeightPx = stampWidthPx * 0.55f
+                    val stampHeightPx = stampWidthPx * 0.46f
                     val stampWidthDp = with(density) { stampWidthPx.toDp() }
-                    val scaleFactor = (width / 0.30f).coerceIn(0.48f, 1.50f)
+                    val scaleFactor = (width / 0.20f).coerceIn(0.35f, 1.60f)
                     val maxX = (1f - width).coerceAtLeast(0f)
                     val maxY = (1f - stampHeightPx / pageHeightPx.coerceAtLeast(1f)).coerceAtLeast(0f)
                     val safeX = x.coerceIn(0f, maxX)
@@ -218,9 +218,9 @@ fun ApprovalSignaturePlacementScreen(
                                 }
                             },
                         shape = RoundedCornerShape((5f * scaleFactor).dp),
-                        color = Color.White.copy(alpha = 0.95f),
-                        border = androidx.compose.foundation.BorderStroke((1.2f * scaleFactor).dp, SkmOrange),
-                        shadowElevation = 5.dp
+                        color = Color.White.copy(alpha = 0.26f),
+                        border = androidx.compose.foundation.BorderStroke((1.0f * scaleFactor).dp, Color(0xAA1976D2)),
+                        shadowElevation = 0.dp
                     ) {
                         Column(
                             Modifier.padding(
